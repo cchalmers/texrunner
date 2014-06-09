@@ -1,20 +1,20 @@
 {-# LANGUAGE OverloadedStrings #-}
 module System.TeXRunner.Parse
-  ( someError 
+  ( someError
   , badBox
   , parseBox
+  , parseUnit
   , parseLog
   , Box (..)
   , TeXLog (..)
   ) where
 
-import           Control.Applicative
-import           Data.Attoparsec.ByteString.Char8 as A
-import           Data.ByteString.Char8            (ByteString)
-import qualified Data.ByteString.Char8            as B
+import Control.Applicative
+import Data.Attoparsec.ByteString.Char8 as A
+import Data.ByteString.Char8            (ByteString)
 import Data.Maybe
-import           Debug.Trace
-import           Data.Monoid
+import Data.Monoid
+import Debug.Trace
 
 data TeXLog = TeXLog
   { thisis    :: Maybe ByteString
@@ -24,47 +24,26 @@ data TeXLog = TeXLog
 
 instance Monoid TeXLog where
   mempty = TeXLog Nothing Nothing []
-  (TeXLog thisis pages1 errors1)
-    `mappend`
-    (TeXLog _ pages2 errors2) = case (pages1,pages2) of
-                                   (Just a,_) -> TeXLog thisis (Just a) (errors1 ++ errors2)
-                                   (_,b)      -> TeXLog thisis b (errors1 ++ errors2)
+  (TeXLog prog pages1 errors1) `mappend` (TeXLog _ pages2 errors2) =
+    case (pages1,pages2) of
+      (Just a,_) -> TeXLog prog (Just a) (errors1 ++ errors2)
+      (_,b)      -> TeXLog prog b (errors1 ++ errors2)
 
+logFile :: Parser TeXLog
 logFile = mconcat <$> many logLine
+  where
+    logLine = do
+      prog   <- optional $ "This is " *> restOfLine
+      pages  <- optional nPages
+      errors <- maybeToList <$> optional someError
+      _      <- restOfLine
+      return $ TeXLog prog pages errors
 
-logLine = do
-  thisis <- optional $ "This is " *> restOfLine
-  pages  <- optional nPages
-  errors <- maybeToList <$> optional someError
-  _      <- restOfLine
-  return $ TeXLog thisis pages errors
-
+parseLog :: ByteString -> Either String TeXLog
 parseLog = parseOnly logFile
 
 
-p = parseOnly someError
-
 -- * Boxes
-
-
--- \setbox0=\hbox{<<string>>}
--- \showbox0
--- >   *\showbox0
--- >   > \box0=
------------- height  depth    width
--- >   \hbox(6.83331+2.15277)x18.6108
--- >   .\tenrm T
--- >   .\kern -1.66702
--- >   .\hbox(6.83331+0.0)x6.80557, shifted 2.15277
--- >   ..\tenrm E
--- >   .\kern -1.25
--- >   .\tenrm X
--- >
--- >   ! OK.
--- >   <*> \showbox0
--- >
--- >   ?
---
 
 -- | Data type for holding dimensions of a hbox.
 data Box = Box
@@ -85,6 +64,12 @@ parseBox = do
       w <- double
       --
       return $ Box (h/8) (d/8) (w/8)
+
+parseUnit :: Parser Double
+parseUnit = do
+  A.skipWhile (/='>') <* char '>'
+  skipSpace
+  double <|> parseUnit
 
 -- * Errors
 
@@ -131,12 +116,12 @@ toBeReadAgain = do
   skipSpace
   anyChar
 
-insertedText :: Parser ByteString
-insertedText = do
-  skipSpace
-  _ <- "<inserted text>"
-  skipSpace
-  restOfLine
+-- insertedText :: Parser ByteString
+-- insertedText = do
+--   skipSpace
+--   _ <- "<inserted text>"
+--   skipSpace
+--   restOfLine
 
 -- General errors
 

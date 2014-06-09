@@ -10,16 +10,13 @@
 -----------------------------------------------------------------------------
 
 module System.TeXRunner
-  ( runTeX
-  , runTeX'
+  ( runTex
+  , runTex'
   ) where
 
-import Data.ByteString.Char8 as C8
-import Data.Functor
-import Data.Maybe
 import Control.Applicative
-import Control.Monad
-import System.Directory
+import Data.ByteString.Char8 as C8
+import Data.Maybe
 import System.Exit
 import System.FilePath
 import System.IO
@@ -35,19 +32,20 @@ runTex :: String     -- ^ TeX command
        -> IO (ExitCode,
               Either String TeXLog,
               Maybe ByteString)
+
 runTex command args source =
   withSystemTempDirectory "texrunner." $ \path ->
-    runTeX' path command args source
+    runTex' path command args source
 
-runTeX' :: FilePath   -- ^ Directory to run TeX in
+runTex' :: FilePath   -- ^ Directory to run TeX in
         -> String     -- ^ TeX command
         -> [String]   -- ^ Additional arguments
         -> ByteString -- ^ Source TeX file
         -> IO (ExitCode,
-              Either String TeXLog,
-              Maybe ByteString)
+               Either String TeXLog,
+               Maybe ByteString)
 
-runTeX' path command args source = do
+runTex' path command args source = do
 
   C8.writeFile (path </> "texrunner.tex") source
 
@@ -55,13 +53,10 @@ runTeX' path command args source = do
             { cwd     = Just path
             , std_in  = CreatePipe
             , std_out = CreatePipe
-            , env     = Nothing
+            , env     = Nothing -- Add dirs to "TEXINPUTS"
             }
 
-  -- (Just inH, Nothing, _, pHandle) <- createProcess p
   (Just inH, Just outH, _, pHandle) <- createProcess p
-
-  -- this is important, TeX doesn't work unless you gobble it's output
 
   hClose inH
   a <- C8.hGetContents outH
@@ -77,8 +72,4 @@ runTeX' path command args source = do
 -- instance MonadPlus IO where
 --     mzero       = ioError (userError "mzero")
 --     m `mplus` n = m `catchIOError` \ _ -> n
-
-instance Alternative IO where
-    empty = mzero
-    (<|>) = mplus
 
