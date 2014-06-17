@@ -52,24 +52,30 @@ data Box = Box
   , boxWidth  :: Double
   } deriving Show
 
+int :: Parser Int
+int = decimal
+
 parseBox :: Parser Box
 parseBox = do
   A.skipWhile (/='\\') <* char '\\'
   parseSingle <|> parseBox
   where
     parseSingle = do
-      _ <- "hbox("
+      _ <- "box" *> int *> "=\n\\hbox("
       h <- double <* char '+'
       d <- double <* ")x"
       w <- double
       --
-      return $ Box (h/8) (d/8) (w/8)
+      return $ Box (pt2bp h) (pt2bp d) (pt2bp w)
 
 parseUnit :: Parser Double
 parseUnit = do
   A.skipWhile (/='>') <* char '>'
   skipSpace
-  double <|> parseUnit
+  fmap pt2bp double <|> parseUnit
+
+pt2bp :: Double -> Double
+pt2bp = (/1.00374)
 
 -- * Errors
 

@@ -69,7 +69,3 @@ runTex' path command args source = do
 
   return (exitC, parseLog $ fromMaybe a logFile, pdfFile)
 
--- instance MonadPlus IO where
---     mzero       = ioError (userError "mzero")
---     m `mplus` n = m `catchIOError` \ _ -> n
-

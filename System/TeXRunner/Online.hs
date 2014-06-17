@@ -3,6 +3,8 @@
 module System.TeXRunner.Online
   ( TeXProcess
   , runTexProcess
+  , runTexOnline
+  -- * Interaction
   , hbox
   , hsize
   , showthe
@@ -17,49 +19,50 @@ import           Data.ByteString.Char8        (ByteString)
 import qualified Data.ByteString.Char8        as B
 import           Data.Monoid
 import           System.IO
+import           System.IO.Temp
 import           System.IO.Streams            as Streams
 import           System.IO.Streams.Attoparsec
 import qualified System.Process               as P
+import Data.Maybe
+
+import System.FilePath
 
 import System.TeXRunner.Parse
+
+-- import System.IO.Streams.Debug
 
 -- | New type for dealing with TeX's pipeing interface.
 newtype TeXProcess a = TeXProcess {runTeXProcess :: ReaderT TeXStreams IO a}
   deriving (Functor, Applicative, Monad, MonadIO, MonadReader TeXStreams)
 
 -- Run a tex process, disguarding the resulting PDF.
-runTexProcess :: FilePath
-              -> Maybe [(String, String)]
-              -> String
+runTexProcess :: String
               -> [String]
               -> ByteString
               -> TeXProcess a
               -> IO a
-runTexProcess dir env command args preamble process = do
-  (outS, inS, h) <- mkTeXHandles dir env command args preamble
-  a              <- flip runReaderT (outS, inS) . runTeXProcess $ process
+runTexProcess command args preamble process =
+  (\(a,_,_) -> a) <$> runTexOnline command args preamble process
 
-  write Nothing outS
-  _ <- waitForProcess h
+-- Run a tex process, keeping the resulting PDF. The TeXProcess must receive 
+-- the terminating control sequence (\bye, \end{document}, \stoptext).
+runTexOnline :: String
+             -> [String]
+             -> ByteString
+             -> TeXProcess a
+             -> IO (a, Either String TeXLog, Maybe ByteString)
+runTexOnline command args preamble process =
+  withSystemTempDirectory "texrunner." $ \path -> do
+    (outS, inS, h) <- mkTeXHandles path Nothing command args preamble
+    a              <- flip runReaderT (outS, inS) . runTeXProcess $ process
 
-  return a
+    write Nothing outS
+    _ <- waitForProcess h
 
--- -- Run a tex process, keeping the resulting PDF.
--- runTexOnline :: FilePath
---              -> Maybe [(String, String)]
---              -> String
---              -> [String]
---              -> ByteString
---              -> TeXProcess a
---              -> IO (a, TeXResult)
--- runTexOnline dir env command args preamble process = do
---   streams <- mkTeXHandles command args preamble
---   a       <- flip runReaderT streams . runTeXProcess $ process
---
---   getOutSteam >>= write Nothing
---   waitForProcess pHandle
---
---   return a
+    mPDF <- optional $ B.readFile (path </> "texput.pdf")
+    mLog <- optional $ B.readFile (path </> "texput.log")
+
+    return (a, parseLog $ fromMaybe "" mLog, mPDF)
 
 -- | Get the dimensions of a hbox.
 hbox :: ByteString -> TeXProcess Box
@@ -68,6 +71,7 @@ hbox str = do
   texPutStrLn $ "\\setbox0=\\hbox{" <> str <> "}\n\\showbox0\n"
   texProcessParser parseBox
 
+-- | Parse result from @\showthe@.
 showthe :: ByteString -> TeXProcess Double
 showthe str = do
   clearUnblocking
@@ -119,6 +123,8 @@ mkTeXHandles dir env command args preamble = do
                                    (Just dir)
                                    env
 
+  -- inStream <- debugStream inStream'
+
   write (Just "\\tracingonline=1\\showboxdepth=1\\showboxbreadth=1\\scrollmode\n")
         outStream
   write (Just preamble) outStream
@@ -165,3 +171,5 @@ runInteractiveProcess' cmd args wd env = do
 
     return (sIn, sOut, sErr, ph)
 
+-- debugStream :: InputStream ByteString -> IO (InputStream ByteString)
+-- debugStream = debugInput id "tex" Streams.stdout
