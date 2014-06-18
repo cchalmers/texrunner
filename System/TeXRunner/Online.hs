@@ -1,14 +1,15 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE OverloadedStrings          #-}
 module System.TeXRunner.Online
-  ( TeXProcess
-  , runTexProcess
-  , runTexOnline
+  ( OnlineTeX
+  -- * Running TeX online
+  , runOnlineTex
+  , runOnlineTex'
   -- * Interaction
   , hbox
   , hsize
   , showthe
-  , texProcessParser
+  , onlineTeXParser
   , texPutStrLn
   ) where
 
@@ -32,29 +33,29 @@ import System.TeXRunner.Parse
 -- import System.IO.Streams.Debug
 
 -- | New type for dealing with TeX's pipeing interface.
-newtype TeXProcess a = TeXProcess {runTeXProcess :: ReaderT TeXStreams IO a}
+newtype OnlineTeX a = OnlineTeX {runOnlineTeX :: ReaderT TeXStreams IO a}
   deriving (Functor, Applicative, Monad, MonadIO, MonadReader TeXStreams)
 
 -- Run a tex process, disguarding the resulting PDF.
-runTexProcess :: String
-              -> [String]
-              -> ByteString
-              -> TeXProcess a
-              -> IO a
-runTexProcess command args preamble process =
-  (\(a,_,_) -> a) <$> runTexOnline command args preamble process
-
--- Run a tex process, keeping the resulting PDF. The TeXProcess must receive 
--- the terminating control sequence (\bye, \end{document}, \stoptext).
-runTexOnline :: String
+runOnlineTex :: String
              -> [String]
              -> ByteString
-             -> TeXProcess a
-             -> IO (a, Either String TeXLog, Maybe ByteString)
-runTexOnline command args preamble process =
-  withSystemTempDirectory "texrunner." $ \path -> do
+             -> OnlineTeX a
+             -> IO a
+runOnlineTex command args preamble process =
+  (\(a,_,_) -> a) <$> runOnlineTex' command args preamble process
+
+-- Run a tex process, keeping the resulting PDF. The OnlineTeX must receive 
+-- the terminating control sequence (\bye, \end{document}, \stoptext).
+runOnlineTex' :: String
+              -> [String]
+              -> ByteString
+              -> OnlineTeX a
+              -> IO (a, Either String TeXLog, Maybe ByteString)
+runOnlineTex' command args preamble process =
+  withSystemTempDirectory "onlinetex." $ \path -> do
     (outS, inS, h) <- mkTeXHandles path Nothing command args preamble
-    a              <- flip runReaderT (outS, inS) . runTeXProcess $ process
+    a              <- flip runReaderT (outS, inS) . runOnlineTeX $ process
 
     write Nothing outS
     _ <- waitForProcess h
@@ -65,29 +66,29 @@ runTexOnline command args preamble process =
     return (a, parseLog $ fromMaybe "" mLog, mPDF)
 
 -- | Get the dimensions of a hbox.
-hbox :: ByteString -> TeXProcess Box
+hbox :: ByteString -> OnlineTeX Box
 hbox str = do
   clearUnblocking
   texPutStrLn $ "\\setbox0=\\hbox{" <> str <> "}\n\\showbox0\n"
-  texProcessParser parseBox
+  onlineTeXParser parseBox
 
 -- | Parse result from @\showthe@.
-showthe :: ByteString -> TeXProcess Double
+showthe :: ByteString -> OnlineTeX Double
 showthe str = do
   clearUnblocking
   texPutStrLn $ "\\showthe" <> str
-  texProcessParser parseUnit
+  onlineTeXParser parseUnit
 
 -- | Dimensions from filling the current line.
-hsize :: TeXProcess Double
+hsize :: OnlineTeX Double
 hsize = boxWidth <$> hbox "\\line{\\hfill}"
 
 -- | Run an Attoparsec parser on TeX's output.
-texProcessParser :: A.Parser a -> TeXProcess a
-texProcessParser p = getInStream >>= liftIO . parseFromStream p
+onlineTeXParser :: A.Parser a -> OnlineTeX a
+onlineTeXParser p = getInStream >>= liftIO . parseFromStream p
   -- TODO: have a timeout
 
-texPutStrLn :: ByteString -> TeXProcess ()
+texPutStrLn :: ByteString -> OnlineTeX ()
 texPutStrLn a = getOutStream >>= liftIO . write (Just $ B.append a "\n")
 
 -- * Internal
@@ -95,14 +96,14 @@ texPutStrLn a = getOutStream >>= liftIO . write (Just $ B.append a "\n")
 
 type TeXStreams = (OutputStream ByteString, InputStream ByteString)
 
-getOutStream :: TeXProcess (OutputStream ByteString)
+getOutStream :: OnlineTeX (OutputStream ByteString)
 getOutStream = reader fst
 
-getInStream :: TeXProcess (InputStream ByteString)
+getInStream :: OnlineTeX (InputStream ByteString)
 getInStream = reader snd
 
 
-clearUnblocking :: TeXProcess ()
+clearUnblocking :: OnlineTeX ()
 clearUnblocking = getInStream >>= void . liftIO . Streams.read
 
 -- | Uses a surface to open an interface with TeX,
@@ -125,16 +126,20 @@ mkTeXHandles dir env command args preamble = do
 
   -- inStream <- debugStream inStream'
 
-  write (Just "\\tracingonline=1\\showboxdepth=1\\showboxbreadth=1\\scrollmode\n")
-        outStream
+  -- commands to get TeX to play nice
+  write (Just $ "\\tracingonline=1"  -- \showbox is echoed to stdout
+             <> "\\showboxdepth=1"   -- show boxes one deep
+             <> "\\showboxbreadth=1"
+             <> "\\scrollmode\n"     -- don't pause after showing something
+        ) outStream
   write (Just preamble) outStream
 
   return (outStream, inStream, h)
 
 
--- plain :: TeXProcess a -> IO a
--- plain a = withSystemTempDirectory "texonline." $ \path ->
---             runTexProcess path Nothing "pdftex" [] "" a
+-- plain :: OnlineTeX a -> IO a
+-- plain a = withSystemTempDirectory "onlinetex." $ \path ->
+--             runOnlineTeX path Nothing "pdftex" [] "" a
 
 -- plainHandles :: IO (OutputStream ByteString,
 --                     InputStream ByteString,
