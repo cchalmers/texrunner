@@ -5,6 +5,6 @@ texrunner provides a (hopefully) convenient interface to TeX including functions
 
 The online module allows retrieving results of commands, such as dimensions of an `hbox`, using TeX's interactive features.
 
-![hbox dimensions recovered from texrunner](diagrams/hbox.svg)
+![hbox dimensions recovered from texrunner](https://rawgit.com/cchalmers/texrunner/master/diagrams/hbox.svg)
 
 This module is new and likely contains lots of bugs.
