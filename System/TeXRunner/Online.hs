@@ -18,17 +18,17 @@ import           Control.Monad.Reader
 import qualified Data.Attoparsec.ByteString   as A
 import           Data.ByteString.Char8        (ByteString)
 import qualified Data.ByteString.Char8        as B
+import           Data.Maybe
 import           Data.Monoid
+import           System.FilePath
 import           System.IO
-import           System.IO.Temp
 import           System.IO.Streams            as Streams
 import           System.IO.Streams.Attoparsec
+import           System.IO.Temp
 import qualified System.Process               as P
-import Data.Maybe
-
-import System.FilePath
 
 import System.TeXRunner.Parse
+-- import System.TeXRunner
 
 -- import System.IO.Streams.Debug
 
@@ -45,13 +45,15 @@ runOnlineTex :: String
 runOnlineTex command args preamble process =
   (\(a,_,_) -> a) <$> runOnlineTex' command args preamble process
 
--- Run a tex process, keeping the resulting PDF. The OnlineTeX must receive 
+-- Run a tex process, keeping the resulting PDF. The OnlineTeX must receive
 -- the terminating control sequence (\bye, \end{document}, \stoptext).
 runOnlineTex' :: String
               -> [String]
               -> ByteString
               -> OnlineTeX a
-              -> IO (a, Either String TeXLog, Maybe ByteString)
+              -> IO (a,
+                     TeXLog,
+                     Maybe ByteString)
 runOnlineTex' command args preamble process =
   withSystemTempDirectory "onlinetex." $ \path -> do
     (outS, inS, h) <- mkTeXHandles path Nothing command args preamble
@@ -102,7 +104,6 @@ getOutStream = reader fst
 getInStream :: OnlineTeX (InputStream ByteString)
 getInStream = reader snd
 
-
 clearUnblocking :: OnlineTeX ()
 clearUnblocking = getInStream >>= void . liftIO . Streams.read
 
@@ -136,18 +137,7 @@ mkTeXHandles dir env command args preamble = do
 
   return (outStream, inStream, h)
 
-
--- plain :: OnlineTeX a -> IO a
--- plain a = withSystemTempDirectory "onlinetex." $ \path ->
---             runOnlineTeX path Nothing "pdftex" [] "" a
-
--- plainHandles :: IO (OutputStream ByteString,
---                     InputStream ByteString,
---                     ProcessHandle)
--- plainHandles = mkTeXHandles "./" Nothing "pdftex" [] ""
-
 -- Adapted from io-streams. Sets input handle to line buffering.
-
 runInteractiveProcess'
     :: FilePath                 -- ^ Filename of the executable (see 'proc' for details)
     -> [String]                 -- ^ Arguments to pass to the executable

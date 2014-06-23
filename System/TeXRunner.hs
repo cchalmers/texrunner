@@ -15,8 +15,7 @@ module System.TeXRunner
   ) where
 
 import Control.Applicative
-import Data.ByteString.Char8 as C8 hiding (intercalate, concatMap)
--- import Data.List             (intercalate)
+import Data.ByteString.Lazy.Char8 as C8 hiding (concatMap)
 import Data.Maybe
 import System.Environment
 import System.Exit
@@ -33,7 +32,7 @@ runTex :: String     -- ^ TeX command
        -> [FilePath] -- ^ Additional TeX inputs
        -> ByteString -- ^ Source TeX file
        -> IO (ExitCode,
-              Either String TeXLog,
+              TeXLog,
               Maybe ByteString)
 
 runTex command args extras source =
@@ -46,7 +45,7 @@ runTex' :: FilePath   -- ^ Directory to run TeX in
         -> [FilePath] -- ^ Additional TeX inputs
         -> ByteString -- ^ Source TeX file
         -> IO (ExitCode,
-               Either String TeXLog,
+               TeXLog,
                Maybe ByteString)
 
 runTex' path command args extras source = do
@@ -73,9 +72,9 @@ runTex' path command args extras source = do
   pdfFile <- optional $ C8.readFile (path </> "texrunner.pdf")
   logFile <- optional $ C8.readFile (path </> "texrunner.log")
 
-  return (exitC, parseLog $ fromMaybe a logFile, pdfFile)
+  return (exitC, parseLog . toStrict $ fromMaybe a logFile, pdfFile)
 
--- | Add a list of paths to the tex 
+-- | Add a list of paths to the tex
 extraTeXInputs :: [FilePath] -> [(String,String)] -> [(String,String)]
 extraTeXInputs []      = id
 extraTeXInputs inputss = alter f "TEXINPUTS"

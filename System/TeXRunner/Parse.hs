@@ -7,6 +7,7 @@ module System.TeXRunner.Parse
   , parseLog
   , Box (..)
   , TeXLog (..)
+  , TeXError (..)
   ) where
 
 import Control.Applicative
@@ -39,8 +40,9 @@ logFile = mconcat <$> many logLine
       _      <- restOfLine
       return $ TeXLog prog pages errors
 
-parseLog :: ByteString -> Either String TeXLog
-parseLog = parseOnly logFile
+parseLog :: ByteString -> TeXLog
+parseLog = (\(Right a) -> a) . parseOnly logFile
+-- the parse should never fail (I think)
 
 
 -- * Boxes
@@ -89,6 +91,7 @@ data TeXError
   | BadBox ByteString
   | EmergencyStop
   | ParagraphEnded
+  | TooMany ByteString
   | TooManyErrors
   | NumberTooBig
   | ExtraBrace
@@ -108,6 +111,7 @@ someError =  "! " *> errors
           <|> extraBrace
           <|> paragraphEnded
           <|> numberTooBig
+          <|> tooMany
           <|> tooManyErrors
           <|> fatalError
           <|> UnknownError <$> restOfLine
@@ -183,6 +187,9 @@ fatalError = FatalError <$> (" ==> Fatal error occurred, " *> restOfLine)
 extraBrace :: Parser TeXError
 extraBrace = "Argument of" *> return ExtraBrace
 
+tooMany :: Parser TeXError
+tooMany = TooMany <$> ("Too Many " *> takeTill (=='\''))
+
 tooManyErrors :: Parser TeXError
 tooManyErrors = "That makes 100 errors; please try again."
              *> return TooManyErrors
@@ -202,9 +209,7 @@ numberTooBig = "Number too big" *> return NumberTooBig
 -- LaTeX errors
 
 latexError :: Parser TeXError
-latexError = do
-  _ <- "LaTeX Error: "
-  LaTeXError <$> takeTill isSpace
+latexError = LaTeXError <$> ("LaTeX Error: " *> restOfLine)
 
 -- Pages
 
