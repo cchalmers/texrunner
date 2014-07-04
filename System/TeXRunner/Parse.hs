@@ -12,10 +12,9 @@ module System.TeXRunner.Parse
 
 import Control.Applicative
 import Data.Attoparsec.ByteString.Char8 as A
-import Data.ByteString.Char8            (ByteString)
+import Data.ByteString.Char8            (ByteString, cons)
 import Data.Maybe
 import Data.Monoid
-import Debug.Trace
 
 data TeXLog = TeXLog
   { thisis    :: Maybe ByteString
@@ -85,19 +84,20 @@ data TeXError
   = UndefinedControlSequence ByteString
   | MissingNumber
   | Missing Char
-  | IllegalUnit (Maybe Char) (Maybe Char)
+  | IllegalUnit -- (Maybe Char) (Maybe Char)
   | PackageError String String
   | LaTeXError ByteString
   | BadBox ByteString
   | EmergencyStop
   | ParagraphEnded
   | TooMany ByteString
+  | DimensionTooLarge
   | TooManyErrors
   | NumberTooBig
   | ExtraBrace
   | FatalError ByteString
   | UnknownError ByteString
-  deriving (Show)
+  deriving (Show, Eq)
 
 someError :: Parser TeXError
 someError =  "! " *> errors
@@ -112,6 +112,7 @@ someError =  "! " *> errors
           <|> paragraphEnded
           <|> numberTooBig
           <|> tooMany
+          <|> dimentionTooLarge
           <|> tooManyErrors
           <|> fatalError
           <|> UnknownError <$> restOfLine
@@ -138,25 +139,38 @@ toBeReadAgain = do
 undefinedControlSequence :: Parser TeXError
 undefinedControlSequence = do
   _ <- "Undefined control sequence."
+
+  _ <- optional $ do -- for context log
+    skipSpace
+    _ <- "system"
+    let skipLines = line <|> restOfLine *> skipLines
+    skipLines
+
   _ <- optional noteStar
   skipSpace
-  l <- optional line
+  _ <- optional line
   skipSpace
-  UndefinedControlSequence <$> traceShow l takeTill isSpace
+  UndefinedControlSequence <$> finalControlSequence
+
+finalControlSequence :: Parser ByteString
+finalControlSequence = last <$> many1 controlSequence
+  where
+    controlSequence = cons '\\' <$>
+      (char '\\' *> takeTill (\x -> isSpace x || x=='\\'))
 
 illegalUnit :: Parser TeXError
 illegalUnit = do
   _ <- "Illegal unit of measure (pt inserted)."
-  a <- optional toBeReadAgain
-  b <- optional toBeReadAgain
-  noteStar
-  return $ IllegalUnit a b
+  _ <- optional toBeReadAgain
+  _ <- optional toBeReadAgain
+
+  return IllegalUnit
 
 missingNumber :: Parser TeXError
 missingNumber = do
   _ <- "Missing number, treated as zero."
-  _ <- toBeReadAgain
-  noteStar
+  _ <- optional toBeReadAgain
+  _ <- optional noteStar
   return MissingNumber
 
 badBox :: Parser TeXError
@@ -193,6 +207,10 @@ tooMany = TooMany <$> ("Too Many " *> takeTill (=='\''))
 tooManyErrors :: Parser TeXError
 tooManyErrors = "That makes 100 errors; please try again."
              *> return TooManyErrors
+
+dimentionTooLarge :: Parser TeXError
+dimentionTooLarge = "Dimension too large."
+                 *> return DimensionTooLarge
 
 -- line 8075 tex.web
 paragraphEnded :: Parser TeXError

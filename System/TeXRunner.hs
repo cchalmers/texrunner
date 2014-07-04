@@ -20,6 +20,7 @@ import qualified Data.ByteString.Char8 as C8 hiding (concatMap)
 import Data.Maybe
 import System.Environment
 import System.Exit
+import System.Directory
 import System.FilePath
 import System.IO
 import System.IO.Temp
@@ -70,8 +71,18 @@ runTex' path command args extras source = do
   hClose outH
   exitC <- waitForProcess pHandle
 
-  pdfFile <- optional $ LC8.readFile (path </> "texrunner.pdf")
-  logFile <- optional $ C8.readFile (path </> "texrunner.log")
+  pdfExists <- doesFileExist (path </> "texrunner.pdf")
+  pdfFile   <- if pdfExists
+                  then Just <$> LC8.readFile (path </> "texrunner.pdf")
+                  else return Nothing
+
+  logExists <- doesFileExist (path </> "texrunner.log")
+  logFile   <- if logExists
+                  then Just <$> C8.readFile (path </> "texrunner.log")
+                  else return Nothing
+
+  -- pdfFile <- optional $ LC8.readFile (path </> "texrunner.pdf")
+  -- logFile <- optional $ C8.readFile (path </> "texrunner.log")
 
   return (exitC, parseLog $ fromMaybe a logFile, pdfFile)
 

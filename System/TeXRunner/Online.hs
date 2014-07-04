@@ -17,10 +17,12 @@ import           Control.Applicative
 import           Control.Monad.Reader
 import qualified Data.Attoparsec.ByteString   as A
 import           Data.ByteString.Char8        (ByteString)
-import qualified Data.ByteString.Char8        as B
+import qualified Data.ByteString.Char8        as C8
+import qualified Data.ByteString.Lazy.Char8   as LC8
 import           Data.Maybe
 import           Data.Monoid
 import           System.FilePath
+import           System.Directory
 import           System.IO
 import           System.IO.Streams            as Streams
 import           System.IO.Streams.Attoparsec
@@ -53,7 +55,7 @@ runOnlineTex' :: String
               -> OnlineTeX a
               -> IO (a,
                      TeXLog,
-                     Maybe ByteString)
+                     Maybe LC8.ByteString)
 runOnlineTex' command args preamble process =
   withSystemTempDirectory "onlinetex." $ \path -> do
     (outS, inS, h) <- mkTeXHandles path Nothing command args preamble
@@ -62,10 +64,20 @@ runOnlineTex' command args preamble process =
     write Nothing outS
     _ <- waitForProcess h
 
-    mPDF <- optional $ B.readFile (path </> "texput.pdf")
-    mLog <- optional $ B.readFile (path </> "texput.log")
+    pdfExists <- doesFileExist (path </> "texrunner.pdf")
+    pdfFile   <- if pdfExists
+                    then Just <$> LC8.readFile (path </> "texrunner.pdf")
+                    else return Nothing
 
-    return (a, parseLog $ fromMaybe "" mLog, mPDF)
+    logExists <- doesFileExist (path </> "texrunner.log")
+    logFile   <- if logExists
+                    then Just <$> C8.readFile (path </> "texrunner.log")
+                    else return Nothing
+
+    -- mPDF <- optional $ B.readFile (path </> "texput.pdf")
+    -- mLog <- optional $ B.readFile (path </> "texput.log")
+
+    return (a, parseLog $ fromMaybe "" logFile, pdfFile)
 
 -- | Get the dimensions of a hbox.
 hbox :: ByteString -> OnlineTeX Box
@@ -91,7 +103,7 @@ onlineTeXParser p = getInStream >>= liftIO . parseFromStream p
   -- TODO: have a timeout
 
 texPutStrLn :: ByteString -> OnlineTeX ()
-texPutStrLn a = getOutStream >>= liftIO . write (Just $ B.append a "\n")
+texPutStrLn a = getOutStream >>= liftIO . write (Just $ C8.append a "\n")
 
 -- * Internal
 -- These funcions should be used with caution.
