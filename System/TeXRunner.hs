@@ -15,7 +15,8 @@ module System.TeXRunner
   ) where
 
 import Control.Applicative
-import Data.ByteString.Lazy.Char8 as C8 hiding (concatMap)
+import Data.ByteString.Lazy.Char8 as LC8 hiding (concatMap)
+import qualified Data.ByteString.Char8 as C8 hiding (concatMap)
 import Data.Maybe
 import System.Environment
 import System.Exit
@@ -50,7 +51,7 @@ runTex' :: FilePath   -- ^ Directory to run TeX in
 
 runTex' path command args extras source = do
 
-  C8.writeFile (path </> "texrunner.tex") source
+  LC8.writeFile (path </> "texrunner.tex") source
 
   environment <- extraTeXInputs (path:extras) <$> getEnvironment
 
@@ -69,10 +70,10 @@ runTex' path command args extras source = do
   hClose outH
   exitC <- waitForProcess pHandle
 
-  pdfFile <- optional $ C8.readFile (path </> "texrunner.pdf")
+  pdfFile <- optional $ LC8.readFile (path </> "texrunner.pdf")
   logFile <- optional $ C8.readFile (path </> "texrunner.log")
 
-  return (exitC, parseLog . toStrict $ fromMaybe a logFile, pdfFile)
+  return (exitC, parseLog $ fromMaybe a logFile, pdfFile)
 
 -- | Add a list of paths to the tex
 extraTeXInputs :: [FilePath] -> [(String,String)] -> [(String,String)]
