@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# OPTIONS_GHC -fno-warn-missing-signatures #-}
 module TeX.PDF where
 
 import Data.ByteString.Lazy.Char8 as B
@@ -9,16 +10,12 @@ import Test.HUnit
 import Test.Framework.Providers.HUnit
 
 import System.TeXRunner
+import System.TeXRunner.Online
 
-tests = [tex, latex, context]
+tests = [tex, latex, context, texOnline, latexOnline, contextOnline]
 
-texHeader :: ByteString
-texHeader = "hi\\bye"
-
-tex = testCase "pdftex" $ do
-  (exitCode, _, mPDF) <- runTex "pdftex" [] [] "hi\\bye"
-  assertEqual "pdftex exit success" ExitSuccess exitCode
-  assertBool "pdftex pdf" $ isJust mPDF
+texDocument :: ByteString
+texDocument = "hi\\bye"
 
 latexDocument :: ByteString
 latexDocument = B.unlines
@@ -28,11 +25,6 @@ latexDocument = B.unlines
   , "\\end{document}"
   ]
 
-latex = testCase "pdflatex" $ do
-  (exitCode, _, mPDF) <- runTex "pdflatex" [] [] latexDocument
-  assertEqual "pdflatex exit success" ExitSuccess exitCode
-  assertBool "pdflatex pdf" $ isJust mPDF
-
 contextDocument :: ByteString
 contextDocument = B.unlines
   [ "\\starttext"
@@ -40,32 +32,30 @@ contextDocument = B.unlines
   , "\\stoptext"
   ]
 
-context = testCase "context" $ do
-  (exitCode, _, mPDF) <- runTex "context" [] [] contextDocument
-  assertEqual "context exit success" ExitSuccess exitCode
-  assertBool "context pdf" $ isJust mPDF
+tex     = testRunTeX "pdftex" [] texDocument
+latex   = testRunTeX "pdflatex" [] latexDocument
+context = testRunTeX "context" ["--once"] contextDocument
+
+testRunTeX command args document = testCase command $ do
+  (exitCode, _, mPDF) <- runTex command args [] document
+  exitCode @?= ExitSuccess
+  assertBool "pdf found" $ isJust mPDF
+
+
+-- online
+
+testOnlineTeX command args document = testCase (command ++ "Online") $ do
+  ((), _, mPDF) <- runOnlineTex' command args "" (texPutStrLn $ toStrict document)
+  assertBool "pdf found" $ isJust mPDF
+
+texOnline     = testOnlineTeX "pdftex" [] texDocument
+latexOnline   = testOnlineTeX "pdflatex" [] latexDocument
+contextOnline = testOnlineTeX "context" ["--pipe"] contextDocument
+
+
+
 
 -- tests to make:
 -- * texinputs for files in cwd
+-- * pdf made online
 
--- missingDollarExample1= "$x+1=2\n\n"
--- 
--- missingDollarExample2= "x_1"
--- 
--- missingDollarExample3= "$$x+1=2\n\n"
--- 
--- numberTooBig = "10000000000"
--- 
--- overfull = "\\hbox to 1em{overfill box}"
--- 
--- underfill = "\\hbox to 20em{underfill box}"
--- 
--- illegalUnit = "\\hskip{1cn}"
--- 
--- undefinedControlSequence = "\\hobx"
--- 
--- missingNumber = "\\hskip"
---  
--- 
--- missingDollarTest = (texPutStrLn missingDollarExample, MissingDollar)
--- 

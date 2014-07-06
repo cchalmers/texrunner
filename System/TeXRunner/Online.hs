@@ -19,10 +19,11 @@ import qualified Data.Attoparsec.ByteString   as A
 import           Data.ByteString.Char8        (ByteString)
 import qualified Data.ByteString.Char8        as C8
 import qualified Data.ByteString.Lazy.Char8   as LC8
+import           Data.List                    (find)
 import           Data.Maybe
 import           Data.Monoid
-import           System.FilePath
 import           System.Directory
+import           System.FilePath
 import           System.IO
 import           System.IO.Streams            as Streams
 import           System.IO.Streams.Attoparsec
@@ -64,18 +65,12 @@ runOnlineTex' command args preamble process =
     write Nothing outS
     _ <- waitForProcess h
 
-    pdfExists <- doesFileExist (path </> "texrunner.pdf")
-    pdfFile   <- if pdfExists
-                    then Just <$> LC8.readFile (path </> "texrunner.pdf")
-                    else return Nothing
+    -- it's normally texput.pdf but some choose random names
+    pdfPath  <- liftA (path </>) . find ((==".pdf") . takeExtension) <$> getDirectoryContents path
+    pdfFile   <- maybe (pure Nothing) ((Just <$>) . LC8.readFile) pdfPath
 
-    logExists <- doesFileExist (path </> "texrunner.log")
-    logFile   <- if logExists
-                    then Just <$> C8.readFile (path </> "texrunner.log")
-                    else return Nothing
-
-    -- mPDF <- optional $ B.readFile (path </> "texput.pdf")
-    -- mLog <- optional $ B.readFile (path </> "texput.log")
+    logPath  <- liftA (path </>) . find ((==".log") . takeExtension) <$> getDirectoryContents path
+    logFile   <- maybe (pure Nothing) ((Just <$>) . C8.readFile) logPath
 
     return (a, parseLog $ fromMaybe "" logFile, pdfFile)
 
