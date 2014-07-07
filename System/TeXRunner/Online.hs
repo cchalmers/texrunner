@@ -28,6 +28,7 @@ import           System.IO
 import           System.IO.Streams            as Streams
 import           System.IO.Streams.Attoparsec
 import           System.IO.Temp
+import qualified Data.Traversable as T
 import qualified System.Process               as P
 
 import System.TeXRunner.Parse
@@ -66,11 +67,11 @@ runOnlineTex' command args preamble process =
     _ <- waitForProcess h
 
     -- it's normally texput.pdf but some choose random names
-    pdfPath  <- liftA (path </>) . find ((==".pdf") . takeExtension) <$> getDirectoryContents path
-    pdfFile   <- maybe (pure Nothing) ((Just <$>) . LC8.readFile) pdfPath
+    pdfPath  <- find ((==".pdf") . takeExtension) <$> getDirectoryContents path
+    pdfFile  <- T.mapM (LC8.readFile . (path </>)) pdfPath
 
-    logPath  <- liftA (path </>) . find ((==".log") . takeExtension) <$> getDirectoryContents path
-    logFile   <- maybe (pure Nothing) ((Just <$>) . C8.readFile) logPath
+    logPath  <- find ((==".log") . takeExtension) <$> getDirectoryContents path
+    logFile  <- T.mapM (C8.readFile . (path </>)) logPath
 
     return (a, parseLog $ fromMaybe "" logFile, pdfFile)
 
