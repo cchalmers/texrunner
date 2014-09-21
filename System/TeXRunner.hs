@@ -14,13 +14,14 @@ module System.TeXRunner
   , runTex'
   ) where
 
-import Control.Applicative
-import Data.ByteString.Lazy.Char8 as LC8 hiding (concatMap)
-import qualified Data.ByteString.Char8 as C8 hiding (concatMap)
-import Data.Maybe
+import           Control.Applicative
+import qualified Data.ByteString.Char8      as C8 hiding (concatMap)
+import           Data.ByteString.Lazy.Char8 as LC8 hiding (concatMap)
+import           Data.Maybe
+
+import System.Directory
 import System.Environment
 import System.Exit
-import System.Directory
 import System.FilePath
 import System.IO
 import System.IO.Temp

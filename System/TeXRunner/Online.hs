@@ -1,5 +1,17 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE OverloadedStrings          #-}
+
+----------------------------------------------------------------------------
+-- |
+-- Module      :  System.TeXRunner
+-- Copyright   :  (c) 2014 Christopher Chalmers
+-- License     :  BSD-style (see LICENSE)
+-- Maintainer  :  c.chalmers@me.com
+--
+-- Functions for running and parsing TeX online.
+--
+-----------------------------------------------------------------------------
+
 module System.TeXRunner.Online
   ( OnlineTeX
   -- * Running TeX online
@@ -15,26 +27,24 @@ module System.TeXRunner.Online
 
 import           Control.Applicative
 import           Control.Monad.Reader
-import qualified Data.Attoparsec.ByteString   as A
-import           Data.ByteString.Char8        (ByteString)
-import qualified Data.ByteString.Char8        as C8
-import qualified Data.ByteString.Lazy.Char8   as LC8
-import           Data.List                    (find)
+import qualified Data.Attoparsec.ByteString as A
+import           Data.ByteString.Char8      (ByteString)
+import qualified Data.ByteString.Char8      as C8
+import qualified Data.ByteString.Lazy.Char8 as LC8
+import           Data.List                  (find)
 import           Data.Maybe
 import           Data.Monoid
-import           System.Directory
-import           System.FilePath
-import           System.IO
-import           System.IO.Streams            as Streams
-import           System.IO.Streams.Attoparsec
-import           System.IO.Temp
-import qualified Data.Traversable as T
-import qualified System.Process               as P
+import qualified Data.Traversable           as T
+
+import System.Directory
+import System.FilePath
+import System.IO
+import System.IO.Streams            as Streams
+import System.IO.Streams.Attoparsec
+import System.IO.Temp
+import System.Process               as P (runInteractiveProcess)
 
 import System.TeXRunner.Parse
--- import System.TeXRunner
-
--- import System.IO.Streams.Debug
 
 -- | New type for dealing with TeX's pipeing interface.
 newtype OnlineTeX a = OnlineTeX {runOnlineTeX :: ReaderT TeXStreams IO a}
@@ -76,21 +86,21 @@ runOnlineTex' command args preamble process =
     return (a, parseLog $ fromMaybe "" logFile, pdfFile)
 
 -- | Get the dimensions of a hbox.
-hbox :: ByteString -> OnlineTeX Box
+hbox :: Fractional n => ByteString -> OnlineTeX (Box n)
 hbox str = do
   clearUnblocking
   texPutStrLn $ "\\setbox0=\\hbox{" <> str <> "}\n\\showbox0\n"
   onlineTeXParser parseBox
 
 -- | Parse result from @\showthe@.
-showthe :: ByteString -> OnlineTeX Double
+showthe :: Fractional n => ByteString -> OnlineTeX n
 showthe str = do
   clearUnblocking
   texPutStrLn $ "\\showthe" <> str
   onlineTeXParser parseUnit
 
 -- | Dimensions from filling the current line.
-hsize :: OnlineTeX Double
+hsize :: Fractional n => OnlineTeX n
 hsize = boxWidth <$> hbox "\\line{\\hfill}"
 
 -- | Run an Attoparsec parser on TeX's output.

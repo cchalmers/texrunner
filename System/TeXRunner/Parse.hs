@@ -1,13 +1,27 @@
 {-# LANGUAGE OverloadedStrings #-}
+
+----------------------------------------------------------------------------
+-- |
+-- Module      :  System.TeXRunner
+-- Copyright   :  (c) 2014 Christopher Chalmers
+-- License     :  BSD-style (see LICENSE)
+-- Maintainer  :  c.chalmers@me.com
+--
+-- Functions for parsing TeX output and logs.
+--
+-----------------------------------------------------------------------------
+
 module System.TeXRunner.Parse
-  ( someError
-  , badBox
+  ( -- * Box
+    Box (..)
   , parseBox
-  , parseUnit
-  , parseLog
-  , Box (..)
+    -- * Errors
   , TeXLog (..)
   , TeXError (..)
+  , someError
+  , badBox
+  , parseUnit
+  , parseLog
   ) where
 
 import Control.Applicative
@@ -47,35 +61,35 @@ parseLog = (\(Right a) -> a) . parseOnly logFile
 -- * Boxes
 
 -- | Data type for holding dimensions of a hbox.
-data Box = Box
-  { boxHeight :: Double
-  , boxDepth  :: Double
-  , boxWidth  :: Double
+data Box n = Box
+  { boxHeight :: n
+  , boxDepth  :: n
+  , boxWidth  :: n
   } deriving Show
 
 int :: Parser Int
 int = decimal
 
-parseBox :: Parser Box
+parseBox :: Fractional n => Parser (Box n)
 parseBox = do
   A.skipWhile (/='\\') <* char '\\'
   parseSingle <|> parseBox
   where
     parseSingle = do
       _ <- "box" *> int *> "=\n\\hbox("
-      h <- double <* char '+'
-      d <- double <* ")x"
-      w <- double
+      h <- rational <* char '+'
+      d <- rational <* ")x"
+      w <- rational
       --
       return $ Box (pt2bp h) (pt2bp d) (pt2bp w)
 
-parseUnit :: Parser Double
+parseUnit :: Fractional n => Parser n
 parseUnit = do
   A.skipWhile (/='>') <* char '>'
   skipSpace
-  fmap pt2bp double <|> parseUnit
+  fmap pt2bp rational <|> parseUnit
 
-pt2bp :: Double -> Double
+pt2bp :: Fractional n => n -> n
 pt2bp = (/1.00374)
 
 -- * Errors
