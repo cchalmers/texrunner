@@ -8,7 +8,8 @@
 -- License     :  BSD-style (see LICENSE)
 -- Maintainer  :  c.chalmers@me.com
 --
--- Functions for running and parsing TeX online.
+-- Functions for running and parsing using TeX's online interface. This is 
+-- mostly used for getting measurements like hbox dimensions and textwidth.
 --
 -----------------------------------------------------------------------------
 
@@ -27,26 +28,26 @@ module System.TeXRunner.Online
 
 import           Control.Applicative
 import           Control.Monad.Reader
-import qualified Data.Attoparsec.ByteString as A
-import           Data.ByteString.Char8      (ByteString)
-import qualified Data.ByteString.Char8      as C8
-import qualified Data.ByteString.Lazy.Char8 as LC8
-import           Data.List                  (find)
+import qualified Data.Attoparsec.ByteString   as A
+import           Data.ByteString.Char8        (ByteString)
+import qualified Data.ByteString.Char8        as C8
+import qualified Data.ByteString.Lazy.Char8   as LC8
+import           Data.List                    (find)
 import           Data.Maybe
 import           Data.Monoid
-import qualified Data.Traversable           as T
+import qualified Data.Traversable             as T
 
-import System.Directory
-import System.FilePath
-import System.IO
-import System.IO.Streams            as Streams
-import System.IO.Streams.Attoparsec
-import System.IO.Temp
-import System.Process               as P (runInteractiveProcess)
+import           System.Directory
+import           System.FilePath
+import           System.IO
+import           System.IO.Streams            as Streams
+import           System.IO.Streams.Attoparsec
+import           System.IO.Temp
+import           System.Process               as P (runInteractiveProcess)
 
-import System.TeXRunner.Parse
+import           System.TeXRunner.Parse
 
--- | New type for dealing with TeX's pipeing interface.
+-- | New type for dealing with TeX's pipping interface.
 newtype OnlineTeX a = OnlineTeX {runOnlineTeX :: ReaderT TeXStreams IO a}
   deriving (Functor, Applicative, Monad, MonadIO, MonadReader TeXStreams)
 
@@ -76,7 +77,7 @@ runOnlineTex' command args preamble process =
     write Nothing outS
     _ <- waitForProcess h
 
-    -- it's normally texput.pdf but some choose random names
+    -- it's normally texput.pdf but some (ConTeXt) choose random names
     pdfPath  <- find ((==".pdf") . takeExtension) <$> getDirectoryContents path
     pdfFile  <- T.mapM (LC8.readFile . (path </>)) pdfPath
 
@@ -112,7 +113,7 @@ texPutStrLn :: ByteString -> OnlineTeX ()
 texPutStrLn a = getOutStream >>= liftIO . write (Just $ C8.append a "\n")
 
 -- * Internal
--- These funcions should be used with caution.
+-- These functions should be used with caution.
 
 type TeXStreams = (OutputStream ByteString, InputStream ByteString)
 

@@ -19,17 +19,18 @@ import qualified Data.ByteString.Char8      as C8 hiding (concatMap)
 import           Data.ByteString.Lazy.Char8 as LC8 hiding (concatMap)
 import           Data.Maybe
 
-import System.Directory
-import System.Environment
-import System.Exit
-import System.FilePath
-import System.IO
-import System.IO.Temp
-import System.Process
+import           System.Directory
+import           System.Environment
+import           System.Exit
+import           System.FilePath
+import           System.IO
+import           System.IO.Temp
+import           System.Process
 
-import System.TeXRunner.Parse
+import           System.TeXRunner.Parse
 
--- | Run TeX program in a temporary system directory.
+-- | Run TeX program in a temporary system directory. Additional TeX inputs are
+--   for filepaths to things like images that TeX can refer to.
 runTex :: String     -- ^ TeX command
        -> [String]   -- ^ Additional arguments
        -> [FilePath] -- ^ Additional TeX inputs
