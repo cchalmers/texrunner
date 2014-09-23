@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# OPTIONS_GHC -fno-warn-missing-signatures #-}
 module TeX.LogParse where
 
 import Data.ByteString.Lazy.Char8 as B (unlines, ByteString)
@@ -11,15 +12,16 @@ import Test.Framework as F
 import System.TeXRunner
 import System.TeXRunner.Parse
 
-tests = [ checkErrors "tex error parse" tex
-        , checkErrors "latex error parse" latex
-        , checkErrors "context error parse" context
-        ]
+tests = texTests ++ latexTests ++ contextTests
+
+texTests = [checkErrors "tex error parse" tex]
+latexTests = [checkErrors "latex error parse" latex]
+contextTests = [checkErrors "context error parse" context]
 
 
 tex e code = testCase ("tex" ++ show e) $ do
   (exitCode, texLog, mPDF) <- runTex "pdftex" [] [] code
-  head (texErrors texLog) @?= e
+  head (map error' $ texErrors texLog) @?= e
 
 latexHeader :: ByteString
 latexHeader = B.unlines
@@ -29,23 +31,23 @@ latexHeader = B.unlines
 
 latex e code = testCase ("latex" ++ show e) $ do
   (exitCode, texLog, mPDF) <- runTex "pdflatex" [] [] (latexHeader <> code)
-  head (texErrors texLog) @?= e
+  head (map error' $ texErrors texLog) @?= e
 
 contextHeader :: ByteString
 contextHeader = "\\starttext"
 
 context e code = testCase ("context" ++ show e) $ do
   (exitCode, texLog, mPDF) <- runTex "context" [] [] (contextHeader <> code)
-  head (texErrors texLog) @?= e
+  head (map error' $ texErrors texLog) @?= e
   -- assertBool ("context" ++ show e) $ texLog `containsError` e
 
 containsError :: TeXLog -> TeXError -> Bool
-containsError log err =  err `elem` texErrors log
+containsError log (TeXError _ err) =  err `elem` map error' (texErrors log)
 
-checkError :: (TeXError -> ByteString -> F.Test) -> (TeXError, [ByteString]) -> F.Test
+checkError :: (TeXError' -> ByteString -> F.Test) -> (TeXError', [ByteString]) -> F.Test
 checkError f (e, codes) = testGroup (show e) $ map (f e) codes
 
-checkErrors :: TestName -> (TeXError -> ByteString -> F.Test) ->  F.Test
+checkErrors :: TestName -> (TeXError' -> ByteString -> F.Test) ->  F.Test
 checkErrors name f = testGroup name $ map (checkError f) texErrs
 
 texErrs =

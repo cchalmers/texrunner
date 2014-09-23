@@ -6,3 +6,4 @@ import qualified TeX.LogParse
 
 main :: IO ()
 main = defaultMain (TeX.PDF.tests ++ TeX.LogParse.tests)
+

@@ -1,86 +1,147 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE RecordWildCards   #-}
+
+----------------------------------------------------------------------------
+-- |
+-- Module      :  System.TeXRunner
+-- Copyright   :  (c) 2014 Christopher Chalmers
+-- License     :  BSD-style (see LICENSE)
+-- Maintainer  :  c.chalmers@me.com
+--
+-- Functions for parsing TeX output and logs.
+--
+-----------------------------------------------------------------------------
+
 module System.TeXRunner.Parse
-  ( someError
-  , badBox
+  ( -- * Box
+    Box (..)
   , parseBox
+    -- * Errors
+  , TeXLog (..)
+  , TeXInfo (..)
+  , TeXError (..)
+  , TeXError' (..)
+  , someError
+  , badBox
   , parseUnit
   , parseLog
-  , Box (..)
-  , TeXLog (..)
-  , TeXError (..)
+  , prettyPrintLog
   ) where
 
-import Control.Applicative
-import Data.Attoparsec.ByteString.Char8 as A
-import Data.ByteString.Char8            (ByteString, cons)
-import Data.Maybe
-import Data.Monoid
+import           Control.Applicative
+import           Data.Attoparsec.ByteString.Char8 as A
+import           Data.ByteString.Char8            (ByteString, cons, pack)
+import qualified Data.ByteString.Char8            as B
+import           Data.Maybe
+import           Data.Monoid
+
+-- Everything's done using ByteString because io-streams' attoparsec module 
+-- only has a ByteString function. It's very likely this will all change to 
+-- Text soon.
 
 data TeXLog = TeXLog
-  { thisis    :: Maybe ByteString
+  { texInfo   :: TeXInfo
   , numPages  :: Maybe Int
   , texErrors :: [TeXError]
   } deriving Show
 
+data TeXInfo = TeXInfo
+  { texCommand      :: Maybe ByteString
+  , texVersion      :: Maybe ByteString
+  , texDistribution :: Maybe ByteString
+  -- , texDate    :: Maybe Date
+  }
+  deriving Show
+
 instance Monoid TeXLog where
-  mempty = TeXLog Nothing Nothing []
+  mempty = TeXLog (TeXInfo Nothing Nothing Nothing) Nothing []
   (TeXLog prog pages1 errors1) `mappend` (TeXLog _ pages2 errors2) =
     case (pages1,pages2) of
       (Just a,_) -> TeXLog prog (Just a) (errors1 ++ errors2)
       (_,b)      -> TeXLog prog b (errors1 ++ errors2)
 
+infoParser :: Parser TeXInfo
+infoParser
+  = TeXInfo
+  <$> optional ("This is"   *> takeTill (== ',') <* anyChar)
+  <*> optional (" Version " *> takeTill (== ' ') <* anyChar)
+  <*> optional (char '('    *> takeTill (== ')') <* anyChar)
+  -- <*> Nothing
+
 logFile :: Parser TeXLog
 logFile = mconcat <$> many logLine
   where
     logLine = do
-      prog   <- optional $ "This is " *> restOfLine
+      info   <- infoParser
       pages  <- optional nPages
       errors <- maybeToList <$> optional someError
       _      <- restOfLine
-      return $ TeXLog prog pages errors
+      return $ TeXLog info pages errors
+
+-- thisIs :: Parser TeXVersion
 
 parseLog :: ByteString -> TeXLog
 parseLog = (\(Right a) -> a) . parseOnly logFile
 -- the parse should never fail (I think)
 
 
+prettyPrintLog :: TeXLog -> ByteString
+prettyPrintLog (TeXLog {..}) =
+  fromMaybe "unknown program" (texCommand texInfo)
+  <> maybe "" (" version " <>) (texVersion texInfo)
+  <> maybe "" (" " <>) (texDistribution texInfo)
+  <> "\n"
+  <> maybe "" ((<> "pages\n") . pack . show) numPages
+  <> B.unlines (map (pack . show) texErrors)
+
 -- * Boxes
 
 -- | Data type for holding dimensions of a hbox.
-data Box = Box
-  { boxHeight :: Double
-  , boxDepth  :: Double
-  , boxWidth  :: Double
+data Box n = Box
+  { boxHeight :: n
+  , boxDepth  :: n
+  , boxWidth  :: n
   } deriving Show
 
 int :: Parser Int
 int = decimal
 
-parseBox :: Parser Box
+parseBox :: Fractional n => Parser (Box n)
 parseBox = do
   A.skipWhile (/='\\') <* char '\\'
   parseSingle <|> parseBox
   where
     parseSingle = do
-      _ <- "box" *> int *> "=\n\\hbox("
-      h <- double <* char '+'
-      d <- double <* ")x"
-      w <- double
+      _ <- "box" *> int <* "=\n\\hbox("
+      h <- rational <* char '+'
+      d <- rational <* ")x"
+      w <- rational
       --
       return $ Box (pt2bp h) (pt2bp d) (pt2bp w)
 
-parseUnit :: Parser Double
+parseUnit :: Fractional n => Parser n
 parseUnit = do
   A.skipWhile (/='>') <* char '>'
   skipSpace
-  fmap pt2bp double <|> parseUnit
+  fmap pt2bp rational <|> parseUnit
 
-pt2bp :: Double -> Double
+pt2bp :: Fractional n => n -> n
 pt2bp = (/1.00374)
 
 -- * Errors
 
-data TeXError
+-- | An error from tex with possible line number.
+data TeXError = TeXError
+  { errorLine :: Maybe Int
+  , error'    :: TeXError'
+  }
+  deriving Show
+
+instance Eq TeXError where
+  TeXError _ a == TeXError _ b = a == b
+
+-- | A subset of possible error TeX can throw.
+data TeXError'
   = UndefinedControlSequence ByteString
   | MissingNumber
   | Missing Char
@@ -97,8 +158,9 @@ data TeXError
   | ExtraBrace
   | FatalError ByteString
   | UnknownError ByteString
-  deriving (Show, Eq)
+  deriving (Show, Read, Eq)
 
+-- Parse any line begining with "! ". Any unknown errors are returned as 'UnknowError'.
 someError :: Parser TeXError
 someError =  "! " *> errors
   where
@@ -115,7 +177,7 @@ someError =  "! " *> errors
           <|> dimentionTooLarge
           <|> tooManyErrors
           <|> fatalError
-          <|> UnknownError <$> restOfLine
+          <|> TeXError Nothing <$> UnknownError <$> restOfLine
 
 noteStar :: Parser ()
 noteStar = skipSpace *> "<*>" *> skipSpace
@@ -148,9 +210,10 @@ undefinedControlSequence = do
 
   _ <- optional noteStar
   skipSpace
-  _ <- optional line
+  l <- optional line
   skipSpace
-  UndefinedControlSequence <$> finalControlSequence
+  cs <- finalControlSequence
+  return $ TeXError l (UndefinedControlSequence cs)
 
 finalControlSequence :: Parser ByteString
 finalControlSequence = last <$> many1 controlSequence
@@ -164,27 +227,27 @@ illegalUnit = do
   _ <- optional toBeReadAgain
   _ <- optional toBeReadAgain
 
-  return IllegalUnit
+  return $ TeXError Nothing IllegalUnit
 
 missingNumber :: Parser TeXError
 missingNumber = do
   _ <- "Missing number, treated as zero."
   _ <- optional toBeReadAgain
   _ <- optional noteStar
-  return MissingNumber
+  return $ TeXError Nothing MissingNumber
 
 badBox :: Parser TeXError
 badBox = do
   s <- choice ["Underfull", "Overfull", "Tight", "Loose"]
   _ <- " \\hbox " *> char '(' *> takeTill (==')') <* char ')'
-  _ <- optional line
-  return $ BadBox s
+  l <- optional line
+  return $ TeXError l (BadBox s)
 
 missing :: Parser TeXError
 missing = do
   c <- "Missing " *> anyChar <* " inserted."
-  _ <- optional line
-  return $ Missing c
+  l <- optional line
+  return $ TeXError l (Missing c)
 
 line :: Parser Int
 line =  " detected at line " *> decimal
@@ -192,25 +255,25 @@ line =  " detected at line " *> decimal
 
 emergencyStop :: Parser TeXError
 emergencyStop = "Emergency stop."
-             *> return EmergencyStop
+             *> return (TeXError Nothing EmergencyStop)
 
 fatalError :: Parser TeXError
-fatalError = FatalError <$> (" ==> Fatal error occurred, " *> restOfLine)
+fatalError = TeXError Nothing <$> FatalError <$> (" ==> Fatal error occurred, " *> restOfLine)
 
 -- line 8058 tex.web
 extraBrace :: Parser TeXError
-extraBrace = "Argument of" *> return ExtraBrace
+extraBrace = "Argument of" *> return (TeXError Nothing ExtraBrace)
 
 tooMany :: Parser TeXError
-tooMany = TooMany <$> ("Too Many " *> takeTill (=='\''))
+tooMany = TeXError Nothing <$> TooMany <$> ("Too Many " *> takeTill (=='\''))
 
 tooManyErrors :: Parser TeXError
 tooManyErrors = "That makes 100 errors; please try again."
-             *> return TooManyErrors
+             *> return (TeXError Nothing TooManyErrors)
 
 dimentionTooLarge :: Parser TeXError
 dimentionTooLarge = "Dimension too large."
-                 *> return DimensionTooLarge
+                 *> return (TeXError Nothing DimensionTooLarge)
 
 -- line 8075 tex.web
 paragraphEnded :: Parser TeXError
@@ -218,16 +281,17 @@ paragraphEnded = do
   _ <- "Paragraph ended before "
   _ <- takeTill isSpace
   _ <- toBeReadAgain
-  _ <- line
-  return ParagraphEnded
+  l <- optional line
+  return $ TeXError l ParagraphEnded
 
 numberTooBig :: Parser TeXError
-numberTooBig = "Number too big" *> return NumberTooBig
+numberTooBig = "Number too big"
+            *> return (TeXError Nothing NumberTooBig)
 
 -- LaTeX errors
 
 latexError :: Parser TeXError
-latexError = LaTeXError <$> ("LaTeX Error: " *> restOfLine)
+latexError = TeXError Nothing <$> LaTeXError <$> ("LaTeX Error: " *> restOfLine)
 
 -- Pages
 

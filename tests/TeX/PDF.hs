@@ -13,6 +13,9 @@ import System.TeXRunner
 import System.TeXRunner.Online
 
 tests = [tex, latex, context, texOnline, latexOnline, contextOnline]
+texTests = [tex, texOnline]
+latexTests = [latex, latexOnline]
+contextTests = [context, contextOnline]
 
 texDocument :: ByteString
 texDocument = "hi\\bye"

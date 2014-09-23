@@ -1,5 +1,18 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE OverloadedStrings          #-}
+
+----------------------------------------------------------------------------
+-- |
+-- Module      :  System.TeXRunner
+-- Copyright   :  (c) 2014 Christopher Chalmers
+-- License     :  BSD-style (see LICENSE)
+-- Maintainer  :  c.chalmers@me.com
+--
+-- Functions for running and parsing using TeX's online interface. This is 
+-- mostly used for getting measurements like hbox dimensions and textwidth.
+--
+-----------------------------------------------------------------------------
+
 module System.TeXRunner.Online
   ( OnlineTeX
   -- * Running TeX online
@@ -22,20 +35,19 @@ import qualified Data.ByteString.Lazy.Char8   as LC8
 import           Data.List                    (find)
 import           Data.Maybe
 import           Data.Monoid
+import qualified Data.Traversable             as T
+
 import           System.Directory
 import           System.FilePath
 import           System.IO
 import           System.IO.Streams            as Streams
 import           System.IO.Streams.Attoparsec
 import           System.IO.Temp
-import qualified System.Process               as P
+import           System.Process               as P (runInteractiveProcess)
 
-import System.TeXRunner.Parse
--- import System.TeXRunner
+import           System.TeXRunner.Parse
 
--- import System.IO.Streams.Debug
-
--- | New type for dealing with TeX's pipeing interface.
+-- | New type for dealing with TeX's pipping interface.
 newtype OnlineTeX a = OnlineTeX {runOnlineTeX :: ReaderT TeXStreams IO a}
   deriving (Functor, Applicative, Monad, MonadIO, MonadReader TeXStreams)
 
@@ -65,31 +77,31 @@ runOnlineTex' command args preamble process =
     write Nothing outS
     _ <- waitForProcess h
 
-    -- it's normally texput.pdf but some choose random names
-    pdfPath  <- liftA (path </>) . find ((==".pdf") . takeExtension) <$> getDirectoryContents path
-    pdfFile   <- maybe (pure Nothing) ((Just <$>) . LC8.readFile) pdfPath
+    -- it's normally texput.pdf but some (ConTeXt) choose random names
+    pdfPath  <- find ((==".pdf") . takeExtension) <$> getDirectoryContents path
+    pdfFile  <- T.mapM (LC8.readFile . (path </>)) pdfPath
 
-    logPath  <- liftA (path </>) . find ((==".log") . takeExtension) <$> getDirectoryContents path
-    logFile   <- maybe (pure Nothing) ((Just <$>) . C8.readFile) logPath
+    logPath  <- find ((==".log") . takeExtension) <$> getDirectoryContents path
+    logFile  <- T.mapM (C8.readFile . (path </>)) logPath
 
     return (a, parseLog $ fromMaybe "" logFile, pdfFile)
 
 -- | Get the dimensions of a hbox.
-hbox :: ByteString -> OnlineTeX Box
+hbox :: Fractional n => ByteString -> OnlineTeX (Box n)
 hbox str = do
   clearUnblocking
   texPutStrLn $ "\\setbox0=\\hbox{" <> str <> "}\n\\showbox0\n"
   onlineTeXParser parseBox
 
 -- | Parse result from @\showthe@.
-showthe :: ByteString -> OnlineTeX Double
+showthe :: Fractional n => ByteString -> OnlineTeX n
 showthe str = do
   clearUnblocking
   texPutStrLn $ "\\showthe" <> str
   onlineTeXParser parseUnit
 
 -- | Dimensions from filling the current line.
-hsize :: OnlineTeX Double
+hsize :: Fractional n => OnlineTeX n
 hsize = boxWidth <$> hbox "\\line{\\hfill}"
 
 -- | Run an Attoparsec parser on TeX's output.
@@ -101,7 +113,7 @@ texPutStrLn :: ByteString -> OnlineTeX ()
 texPutStrLn a = getOutStream >>= liftIO . write (Just $ C8.append a "\n")
 
 -- * Internal
--- These funcions should be used with caution.
+-- These functions should be used with caution.
 
 type TeXStreams = (OutputStream ByteString, InputStream ByteString)
 
