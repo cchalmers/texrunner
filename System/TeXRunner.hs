@@ -12,6 +12,7 @@
 module System.TeXRunner
   ( runTex
   , runTex'
+  , prettyPrintLog
   ) where
 
 import           Control.Applicative
@@ -29,29 +30,24 @@ import           System.Process
 
 import           System.TeXRunner.Parse
 
--- | Run TeX program in a temporary system directory. Additional TeX inputs are
---   for filepaths to things like images that TeX can refer to.
+-- | Same as 'runTex'' but runs TeX in a temporary system directory.
 runTex :: String     -- ^ TeX command
        -> [String]   -- ^ Additional arguments
-       -> [FilePath] -- ^ Additional TeX inputs
+       -> [FilePath] -- ^ Additional TeX input paths
        -> ByteString -- ^ Source TeX file
-       -> IO (ExitCode,
-              TeXLog,
-              Maybe ByteString)
-
+       -> IO (ExitCode, TeXLog, Maybe ByteString)
 runTex command args extras source =
   withSystemTempDirectory "texrunner." $ \path ->
     runTex' path command args extras source
 
+-- | Run TeX program in the given directory. Additional TeX inputs are
+--   for filepaths to things like images that TeX can refer to.
 runTex' :: FilePath   -- ^ Directory to run TeX in
         -> String     -- ^ TeX command
         -> [String]   -- ^ Additional arguments
         -> [FilePath] -- ^ Additional TeX inputs
         -> ByteString -- ^ Source TeX file
-        -> IO (ExitCode,
-               TeXLog,
-               Maybe ByteString)
-
+        -> IO (ExitCode, TeXLog, Maybe ByteString)
 runTex' path command args extras source = do
 
   LC8.writeFile (path </> "texrunner.tex") source
@@ -68,7 +64,7 @@ runTex' path command args extras source = do
   (Just inH, Just outH, _, pHandle) <- createProcess p
 
   hClose inH
-  a <- C8.hGetContents outH
+  a <- C8.hGetContents outH -- backup log
 
   hClose outH
   exitC <- waitForProcess pHandle
@@ -104,10 +100,10 @@ extraTeXInputs inputss = alter f "TEXINPUTS"
 alter :: Eq k => (Maybe a -> Maybe a) -> k -> [(k,a)] -> [(k,a)]
 alter f k = go
   where
-    -- go :: [(k,a)] -> [(k,a)]
-    go [] = maybeToList ((,) k <$> f Nothing)
-    go ((k',x):xs) | k' == k   = case f (Just x) of
-                                   Just x' -> (k',x') : xs
-                                   Nothing -> xs
-                   | otherwise = (k',x) : go xs
+    go []         = maybeToList ((,) k <$> f Nothing)
+    go ((k',x):xs)
+      | k' == k   = case f (Just x) of
+                      Just x' -> (k',x') : xs
+                      Nothing -> xs
+      | otherwise = (k',x) : go xs
 

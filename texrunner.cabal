@@ -19,7 +19,7 @@ library
                        System.TeXRunner.Parse
   -- other-modules:       
   other-extensions:    GeneralizedNewtypeDeriving, OverloadedStrings
-  build-depends:       base             >=4.6  && <4.8,
+  build-depends:       base             >=4.6  && <4.9,
                        bytestring       >=0.10 && <1.0,
                        filepath,
                        directory        >=1.2  && <2.0,

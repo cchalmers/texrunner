@@ -3,12 +3,14 @@
 
 ----------------------------------------------------------------------------
 -- |
--- Module      :  System.TeXRunner
--- Copyright   :  (c) 2014 Christopher Chalmers
+-- Module      :  System.TeXRunner.Log
+-- Copyright   :  (c) 2015 Christopher Chalmers
 -- License     :  BSD-style (see LICENSE)
 -- Maintainer  :  c.chalmers@me.com
 --
--- Functions for parsing TeX output and logs.
+-- Functions for parsing TeX output and logs. This log is parser is
+-- experimental and largely untested. Please make an issue for any logs
+-- that aren't parsed properly.
 --
 -----------------------------------------------------------------------------
 
@@ -35,9 +37,9 @@ import qualified Data.ByteString.Char8            as B
 import           Data.Maybe
 import           Data.Monoid
 
--- Everything's done using ByteString because io-streams' attoparsec module 
--- only has a ByteString function. It's very likely this will all change to 
--- Text soon.
+-- Everything's done using ByteString because io-streams' attoparsec module
+-- only has a ByteString function. It's very likely this will all change to
+-- Text in the future.
 
 data TeXLog = TeXLog
   { texInfo   :: TeXInfo
@@ -53,9 +55,10 @@ data TeXInfo = TeXInfo
   }
   deriving Show
 
+-- Make shift way to parse a log by combining it in this way.
 instance Monoid TeXLog where
   mempty = TeXLog (TeXInfo Nothing Nothing Nothing) Nothing []
-  (TeXLog prog pages1 errors1) `mappend` (TeXLog _ pages2 errors2) =
+  TeXLog prog pages1 errors1 `mappend` TeXLog _ pages2 errors2 =
     case (pages1,pages2) of
       (Just a,_) -> TeXLog prog (Just a) (errors1 ++ errors2)
       (_,b)      -> TeXLog prog b (errors1 ++ errors2)
@@ -84,7 +87,6 @@ parseLog :: ByteString -> TeXLog
 parseLog = (\(Right a) -> a) . parseOnly logFile
 -- the parse should never fail (I think)
 
-
 prettyPrintLog :: TeXLog -> ByteString
 prettyPrintLog (TeXLog {..}) =
   fromMaybe "unknown program" (texCommand texInfo)
@@ -96,7 +98,9 @@ prettyPrintLog (TeXLog {..}) =
 
 -- * Boxes
 
--- | Data type for holding dimensions of a hbox.
+-- | Data type for holding dimensions of a hbox. It is likely the
+--   internal representation will change to allow nested boxes in the
+--   future.
 data Box n = Box
   { boxHeight :: n
   , boxDepth  :: n

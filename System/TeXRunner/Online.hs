@@ -3,13 +3,19 @@
 
 ----------------------------------------------------------------------------
 -- |
--- Module      :  System.TeXRunner
+-- Module      :  System.TeXRunner.Online
 -- Copyright   :  (c) 2014 Christopher Chalmers
 -- License     :  BSD-style (see LICENSE)
 -- Maintainer  :  c.chalmers@me.com
 --
--- Functions for running and parsing using TeX's online interface. This is 
+-- Functions for running and parsing using TeX's online interface. This is
 -- mostly used for getting measurements like hbox dimensions and textwidth.
+--
+-- TeX's online interface is basically running the command line. You can
+-- see it by running @pdflatex@ without any arguments. The contents can
+-- be writen line by and tex can give feedback though stdout, which gets
+-- parsed in by this module. This is the only way I know to get info
+-- like hbox sizes. Please let me know if you know a better way.
 --
 -----------------------------------------------------------------------------
 
@@ -17,6 +23,7 @@ module System.TeXRunner.Online
   ( OnlineTeX
   -- * Running TeX online
   , runOnlineTex
+
   , runOnlineTex'
   -- * Interaction
   , hbox
@@ -24,6 +31,15 @@ module System.TeXRunner.Online
   , showthe
   , onlineTeXParser
   , texPutStrLn
+
+  -- * Low level
+  -- | These functions allow give you direct access to the iostreams
+  --   with tex. The implementation is likely to change in the future
+  --   and using them directly is not recommended.
+  , TeXStreams
+  , getInStream
+  , getOutStream
+  , clearUnblocking
   ) where
 
 import           Control.Applicative
@@ -47,7 +63,8 @@ import           System.Process               as P (runInteractiveProcess)
 
 import           System.TeXRunner.Parse
 
--- | New type for dealing with TeX's pipping interface.
+-- | Type for dealing with TeX's pipping interface, the current streams
+--   are availble though the `MonadReader` instance.
 newtype OnlineTeX a = OnlineTeX {runOnlineTeX :: ReaderT TeXStreams IO a}
   deriving (Functor, Applicative, Monad, MonadIO, MonadReader TeXStreams)
 
@@ -66,9 +83,7 @@ runOnlineTex' :: String
               -> [String]
               -> ByteString
               -> OnlineTeX a
-              -> IO (a,
-                     TeXLog,
-                     Maybe LC8.ByteString)
+              -> IO (a, TeXLog, Maybe LC8.ByteString)
 runOnlineTex' command args preamble process =
   withSystemTempDirectory "onlinetex." $ \path -> do
     (outS, inS, h) <- mkTeXHandles path Nothing command args preamble
@@ -117,12 +132,15 @@ texPutStrLn a = getOutStream >>= liftIO . write (Just $ C8.append a "\n")
 
 type TeXStreams = (OutputStream ByteString, InputStream ByteString)
 
+-- | Get the output stream to read tex's output.
 getOutStream :: OnlineTeX (OutputStream ByteString)
 getOutStream = reader fst
 
+-- | Get the input stream to give text to tex.
 getInStream :: OnlineTeX (InputStream ByteString)
 getInStream = reader snd
 
+-- | Clear any output tex has already given.
 clearUnblocking :: OnlineTeX ()
 clearUnblocking = getInStream >>= void . liftIO . Streams.read
 
