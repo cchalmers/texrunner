@@ -37,67 +37,9 @@ import qualified Data.ByteString.Char8            as B
 import           Data.Maybe
 import           Data.Monoid
 
--- Everything's done using ByteString because io-streams' attoparsec module
--- only has a ByteString function. It's very likely this will all change to
--- Text in the future.
-
-data TexLog = TexLog
-  { texInfo   :: TexInfo
-  , numPages  :: Maybe Int
-  , texErrors :: [TexError]
-  , rawLog    :: ByteString
-  } deriving Show
-
-data TexInfo = TexInfo
-  { texCommand      :: Maybe ByteString
-  , texVersion      :: Maybe ByteString
-  , texDistribution :: Maybe ByteString
-  -- , texDate    :: Maybe Date
-  }
-  deriving Show
-
--- Make shift way to parse a log by combining it in this way.
-instance Monoid TexLog where
-  mempty = TexLog (TexInfo Nothing Nothing Nothing) Nothing []
-  TexLog prog pages1 errors1 raw `mappend` TexLog _ pages2 errors2 _ =
-    case (pages1,pages2) of
-      (Just a,_) -> TexLog prog (Just a) (errors1 ++ errors2) raw
-      (_,b)      -> TexLog prog b (errors1 ++ errors2) raw
-
-infoParser :: Parser TexInfo
-infoParser
-  = TexInfo
-  <$> optional ("This is"   *> takeTill (== ',') <* anyChar)
-  <*> optional (" Version " *> takeTill (== ' ') <* anyChar)
-  <*> optional (char '('    *> takeTill (== ')') <* anyChar)
-  -- <*> Nothing
-
-logFile :: Parser TexLog
-logFile = mconcat <$> many logLine
-  where
-    logLine = do
-      info   <- infoParser
-      pages  <- optional nPages
-      errors <- maybeToList <$> optional someError
-      _      <- restOfLine
-      return $ TexLog info pages errors
-
--- thisIs :: Parser TexVersion
-
-parseLog :: ByteString -> TexLog
-parseLog = (\(Right a) -> a) . parseOnly logFile
--- the parse should never fail (I think)
-
-prettyPrintLog :: TexLog -> ByteString
-prettyPrintLog (TexLog {..}) =
-  fromMaybe "unknown program" (texCommand texInfo)
-  <> maybe "" (" version " <>) (texVersion texInfo)
-  <> maybe "" (" " <>) (texDistribution texInfo)
-  <> "\n"
-  <> maybe "" ((<> "pages\n") . pack . show) numPages
-  <> B.unlines (map (pack . show) texErrors)
-
--- * Boxes
+------------------------------------------------------------------------
+-- Boxes
+------------------------------------------------------------------------
 
 -- | Data type for holding dimensions of a hbox. It is likely the
 --   internal representation will change to allow nested boxes in the
@@ -133,7 +75,73 @@ parseUnit = do
 pt2bp :: Fractional n => n -> n
 pt2bp = (/1.00374)
 
--- * Errors
+------------------------------------------------------------------------
+-- Logs
+------------------------------------------------------------------------
+
+-- Everything's done using ByteString because io-streams' attoparsec module
+-- only has a ByteString function. It's very likely this will all change to
+-- Text in the future.
+
+data TexLog = TexLog
+  { texInfo   :: TexInfo
+  , numPages  :: Maybe Int
+  , texErrors :: [TexError]
+  -- , rawLog    :: ByteString
+  } deriving Show
+
+data TexInfo = TexInfo
+  { texCommand      :: Maybe ByteString
+  , texVersion      :: Maybe ByteString
+  , texDistribution :: Maybe ByteString
+  -- , texDate    :: Maybe Date
+  }
+  deriving Show
+
+-- Make shift way to parse a log by combining it in this way.
+instance Monoid TexLog where
+  mempty = TexLog (TexInfo Nothing Nothing Nothing) Nothing []
+  TexLog prog pages1 errors1 `mappend` TexLog _ pages2 errors2 =
+    case (pages1,pages2) of
+      (Just a,_) -> TexLog prog (Just a) (errors1 ++ errors2)
+      (_,b)      -> TexLog prog b (errors1 ++ errors2)
+
+infoParser :: Parser TexInfo
+infoParser
+  = TexInfo
+  <$> optional ("This is"   *> takeTill (== ',') <* anyChar)
+  <*> optional (" Version " *> takeTill (== ' ') <* anyChar)
+  <*> optional (char '('    *> takeTill (== ')') <* anyChar)
+  -- <*> Nothing
+
+logFile :: Parser TexLog
+logFile = mconcat <$> many logLine
+  where
+    logLine = do
+      info   <- infoParser
+      pages  <- optional nPages
+      errors <- maybeToList <$> optional someError
+      _      <- restOfLine
+      return $ TexLog info pages errors
+
+-- thisIs :: Parser TexVersion
+
+parseLog :: ByteString -> TexLog
+parseLog = (\(Right a) -> a) . parseOnly logFile
+-- the parse should never fail (I think)
+
+prettyPrintLog :: TexLog -> ByteString
+prettyPrintLog (TexLog {..}) =
+  fromMaybe "unknown program" (texCommand texInfo)
+  <> maybe "" (" version " <>) (texVersion texInfo)
+  <> maybe "" (" " <>) (texDistribution texInfo)
+  <> "\n"
+  <> maybe "" ((<> "pages\n") . pack . show) numPages
+  <> B.unlines (map (pack . show) texErrors)
+
+------------------------------------------------------------------------
+-- Errors
+------------------------------------------------------------------------
 
 -- | An error from tex with possible line number.
 data TexError = TexError
@@ -201,7 +209,9 @@ toBeReadAgain = do
 --   skipSpace
 --   restOfLine
 
--- General errors
+------------------------------------------------------------------------
+-- Error parsers
+------------------------------------------------------------------------
 
 undefinedControlSequence :: Parser TexError
 undefinedControlSequence = do
