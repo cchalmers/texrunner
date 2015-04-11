@@ -46,6 +46,7 @@ test-suite tests
 
   build-depends:
     base,
+    lens,
     test-framework,
     test-framework-hunit,
     HUnit,

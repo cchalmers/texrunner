@@ -175,8 +175,10 @@ data TexError'
 
 -- Parse any line begining with "! ". Any unknown errors are returned as 'UnknowError'.
 someError :: Parser TexError
-someError =  "! " *> errors
+someError =  mark *> errors
   where
+    -- in context exclamation mark isn't always at the begining
+    mark = "! " <|> (notChar '\n' *> mark)
     errors =  undefinedControlSequence
           <|> illegalUnit
           <|> missingNumber
