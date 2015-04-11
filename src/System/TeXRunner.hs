@@ -1,15 +1,15 @@
 ----------------------------------------------------------------------------
 -- |
--- Module      :  System.TeXRunner
+-- Module      :  System.Texrunner
 -- Copyright   :  (c) 2014 Christopher Chalmers
 -- License     :  BSD-style (see LICENSE)
 -- Maintainer  :  c.chalmers@me.com
 --
--- Functions for running TeX.
+-- Functions for running Tex.
 --
 -----------------------------------------------------------------------------
 
-module System.TeXRunner
+module System.Texrunner
   ( runTex
   , runTex'
   , prettyPrintLog
@@ -28,31 +28,31 @@ import           System.IO
 import           System.IO.Temp
 import           System.Process
 
-import           System.TeXRunner.Parse
+import           System.Texrunner.Parse
 
--- | Same as 'runTex'' but runs TeX in a temporary system directory.
-runTex :: String     -- ^ TeX command
+-- | Same as 'runTex'' but runs Tex in a temporary system directory.
+runTex :: String     -- ^ Tex command
        -> [String]   -- ^ Additional arguments
-       -> [FilePath] -- ^ Additional TeX input paths
-       -> ByteString -- ^ Source TeX file
-       -> IO (ExitCode, TeXLog, Maybe ByteString)
+       -> [FilePath] -- ^ Additional Tex input paths
+       -> ByteString -- ^ Source Tex file
+       -> IO (ExitCode, TexLog, Maybe ByteString)
 runTex command args extras source =
   withSystemTempDirectory "texrunner." $ \path ->
     runTex' path command args extras source
 
--- | Run TeX program in the given directory. Additional TeX inputs are
---   for filepaths to things like images that TeX can refer to.
-runTex' :: FilePath   -- ^ Directory to run TeX in
-        -> String     -- ^ TeX command
+-- | Run Tex program in the given directory. Additional Tex inputs are
+--   for filepaths to things like images that Tex can refer to.
+runTex' :: FilePath   -- ^ Directory to run Tex in
+        -> String     -- ^ Tex command
         -> [String]   -- ^ Additional arguments
-        -> [FilePath] -- ^ Additional TeX inputs
-        -> ByteString -- ^ Source TeX file
-        -> IO (ExitCode, TeXLog, Maybe ByteString)
+        -> [FilePath] -- ^ Additional Tex inputs
+        -> ByteString -- ^ Source Tex file
+        -> IO (ExitCode, TexLog, Maybe ByteString)
 runTex' path command args extras source = do
 
   LC8.writeFile (path </> "texrunner.tex") source
 
-  environment <- extraTeXInputs (path:extras) <$> getEnvironment
+  environment <- extraTexInputs (path:extras) <$> getEnvironment
 
   let p = (proc command ("texrunner.tex" : args))
             { cwd     = Just path
@@ -85,9 +85,9 @@ runTex' path command args extras source = do
   return (exitC, parseLog $ fromMaybe a logFile, pdfFile)
 
 -- | Add a list of paths to the tex
-extraTeXInputs :: [FilePath] -> [(String,String)] -> [(String,String)]
-extraTeXInputs []      = id
-extraTeXInputs inputss = alter f "TEXINPUTS"
+extraTexInputs :: [FilePath] -> [(String,String)] -> [(String,String)]
+extraTexInputs []      = id
+extraTexInputs inputss = alter f "TEXINPUTS"
   where
     f Nothing  = Just inputs
     f (Just x) = Just (inputs ++ [searchPathSeparator] ++ x)

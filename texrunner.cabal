@@ -19,9 +19,9 @@ cabal-version:       >=1.10
 
 library
   exposed-modules:
-    System.TeXRunner
-    System.TeXRunner.Online
-    System.TeXRunner.Parse
+    System.Texrunner
+    System.Texrunner.Online
+    System.Texrunner.Parse
   build-depends:
     base       >=4.6  && <4.9,
     bytestring >=0.10 && <1.0,
@@ -42,7 +42,7 @@ test-suite tests
   ghc-options:    -Wall
   default-language: Haskell2010
   other-modules:
-    TeX.PDF
+    Tex.PDF
 
   build-depends:
     base,

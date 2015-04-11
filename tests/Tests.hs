@@ -1,9 +1,9 @@
 module Main (main) where
 
 import Test.Framework (defaultMain)
-import qualified TeX.PDF
-import qualified TeX.LogParse
+import qualified Tex.PDF
+import qualified Tex.LogParse
 
 main :: IO ()
-main = defaultMain (TeX.PDF.tests ++ TeX.LogParse.tests)
+main = defaultMain (Tex.PDF.tests ++ Tex.LogParse.tests)
 

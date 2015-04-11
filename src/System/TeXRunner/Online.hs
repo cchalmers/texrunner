@@ -3,15 +3,15 @@
 
 ----------------------------------------------------------------------------
 -- |
--- Module      :  System.TeXRunner.Online
--- Copyright   :  (c) 2014 Christopher Chalmers
+-- Module      :  System.Texrunner.Online
+-- Copyright   :  (c) 2015 Christopher Chalmers
 -- License     :  BSD-style (see LICENSE)
 -- Maintainer  :  c.chalmers@me.com
 --
--- Functions for running and parsing using TeX's online interface. This is
+-- Functions for running and parsing using Tex's online interface. This is
 -- mostly used for getting measurements like hbox dimensions and textwidth.
 --
--- TeX's online interface is basically running the command line. You can
+-- Tex's online interface is basically running the command line. You can
 -- see it by running @pdflatex@ without any arguments. The contents can
 -- be writen line by and tex can give feedback though stdout, which gets
 -- parsed in by this module. This is the only way I know to get info
@@ -19,9 +19,9 @@
 --
 -----------------------------------------------------------------------------
 
-module System.TeXRunner.Online
-  ( OnlineTeX
-  -- * Running TeX online
+module System.Texrunner.Online
+  ( OnlineTex
+  -- * Running Tex online
   , runOnlineTex
 
   , runOnlineTex'
@@ -29,14 +29,14 @@ module System.TeXRunner.Online
   , hbox
   , hsize
   , showthe
-  , onlineTeXParser
+  , onlineTexParser
   , texPutStrLn
 
   -- * Low level
   -- | These functions allow give you direct access to the iostreams
   --   with tex. The implementation is likely to change in the future
   --   and using them directly is not recommended.
-  , TeXStreams
+  , TexStreams
   , getInStream
   , getOutStream
   , clearUnblocking
@@ -61,38 +61,38 @@ import           System.IO.Streams.Attoparsec
 import           System.IO.Temp
 import           System.Process               as P (runInteractiveProcess)
 
-import           System.TeXRunner.Parse
+import           System.Texrunner.Parse
 
--- | Type for dealing with TeX's pipping interface, the current streams
+-- | Type for dealing with Tex's pipping interface, the current streams
 --   are availble though the `MonadReader` instance.
-newtype OnlineTeX a = OnlineTeX {runOnlineTeX :: ReaderT TeXStreams IO a}
-  deriving (Functor, Applicative, Monad, MonadIO, MonadReader TeXStreams)
+newtype OnlineTex a = OnlineTex {runOnlineTexT :: ReaderT TexStreams IO a}
+  deriving (Functor, Applicative, Monad, MonadIO, MonadReader TexStreams)
 
 -- Run a tex process, disguarding the resulting PDF.
-runOnlineTex :: String
-             -> [String]
-             -> ByteString
-             -> OnlineTeX a
+runOnlineTex :: String      -- ^ tex command
+             -> [String]    -- ^ tex command arguments
+             -> ByteString  -- ^ preamble
+             -> OnlineTex a -- ^ Online Tex to be Run
              -> IO a
 runOnlineTex command args preamble process =
   (\(a,_,_) -> a) <$> runOnlineTex' command args preamble process
 
--- Run a tex process, keeping the resulting PDF. The OnlineTeX must receive
+-- Run a tex process, keeping the resulting PDF. The OnlineTex must receive
 -- the terminating control sequence (\bye, \end{document}, \stoptext).
 runOnlineTex' :: String
               -> [String]
               -> ByteString
-              -> OnlineTeX a
-              -> IO (a, TeXLog, Maybe LC8.ByteString)
+              -> OnlineTex a
+              -> IO (a, TexLog, Maybe LC8.ByteString)
 runOnlineTex' command args preamble process =
   withSystemTempDirectory "onlinetex." $ \path -> do
-    (outS, inS, h) <- mkTeXHandles path Nothing command args preamble
-    a              <- flip runReaderT (outS, inS) . runOnlineTeX $ process
+    (outS, inS, h) <- mkTexHandles path Nothing command args preamble
+    a              <- flip runReaderT (outS, inS) . runOnlineTexT $ process
 
     write Nothing outS
     _ <- waitForProcess h
 
-    -- it's normally texput.pdf but some (ConTeXt) choose random names
+    -- it's normally texput.pdf but some (Context) choose random names
     pdfPath  <- find ((==".pdf") . takeExtension) <$> getDirectoryContents path
     pdfFile  <- T.mapM (LC8.readFile . (path </>)) pdfPath
 
@@ -102,50 +102,50 @@ runOnlineTex' command args preamble process =
     return (a, parseLog $ fromMaybe "" logFile, pdfFile)
 
 -- | Get the dimensions of a hbox.
-hbox :: Fractional n => ByteString -> OnlineTeX (Box n)
+hbox :: Fractional n => ByteString -> OnlineTex (Box n)
 hbox str = do
   clearUnblocking
   texPutStrLn $ "\\setbox0=\\hbox{" <> str <> "}\n\\showbox0\n"
-  onlineTeXParser parseBox
+  onlineTexParser parseBox
 
 -- | Parse result from @\showthe@.
-showthe :: Fractional n => ByteString -> OnlineTeX n
+showthe :: Fractional n => ByteString -> OnlineTex n
 showthe str = do
   clearUnblocking
   texPutStrLn $ "\\showthe" <> str
-  onlineTeXParser parseUnit
+  onlineTexParser parseUnit
 
 -- | Dimensions from filling the current line.
-hsize :: Fractional n => OnlineTeX n
+hsize :: Fractional n => OnlineTex n
 hsize = boxWidth <$> hbox "\\line{\\hfill}"
 
--- | Run an Attoparsec parser on TeX's output.
-onlineTeXParser :: A.Parser a -> OnlineTeX a
-onlineTeXParser p = getInStream >>= liftIO . parseFromStream p
+-- | Run an Attoparsec parser on Tex's output.
+onlineTexParser :: A.Parser a -> OnlineTex a
+onlineTexParser p = getInStream >>= liftIO . parseFromStream p
   -- TODO: have a timeout
 
-texPutStrLn :: ByteString -> OnlineTeX ()
+texPutStrLn :: ByteString -> OnlineTex ()
 texPutStrLn a = getOutStream >>= liftIO . write (Just $ C8.append a "\n")
 
 -- * Internal
 -- These functions should be used with caution.
 
-type TeXStreams = (OutputStream ByteString, InputStream ByteString)
+type TexStreams = (OutputStream ByteString, InputStream ByteString)
 
 -- | Get the output stream to read tex's output.
-getOutStream :: OnlineTeX (OutputStream ByteString)
+getOutStream :: OnlineTex (OutputStream ByteString)
 getOutStream = reader fst
 
 -- | Get the input stream to give text to tex.
-getInStream :: OnlineTeX (InputStream ByteString)
+getInStream :: OnlineTex (InputStream ByteString)
 getInStream = reader snd
 
 -- | Clear any output tex has already given.
-clearUnblocking :: OnlineTeX ()
+clearUnblocking :: OnlineTex ()
 clearUnblocking = getInStream >>= void . liftIO . Streams.read
 
--- | Uses a surface to open an interface with TeX,
-mkTeXHandles :: FilePath
+-- | Uses a surface to open an interface with Tex,
+mkTexHandles :: FilePath
              -> Maybe [(String, String)]
              -> String
              -> [String]
@@ -153,9 +153,9 @@ mkTeXHandles :: FilePath
              -> IO (OutputStream ByteString,
                     InputStream ByteString,
                     ProcessHandle)
-mkTeXHandles dir env command args preamble = do
+mkTexHandles dir env command args preamble = do
 
-  -- TeX doesn't send anything to stderr
+  -- Tex doesn't send anything to stderr
   (outStream, inStream, _, h) <- runInteractiveProcess'
                                    command
                                    args
@@ -164,7 +164,7 @@ mkTeXHandles dir env command args preamble = do
 
   -- inStream <- debugStream inStream'
 
-  -- commands to get TeX to play nice
+  -- commands to get Tex to play nice
   write (Just $ "\\tracingonline=1"  -- \showbox is echoed to stdout
              <> "\\showboxdepth=1"   -- show boxes one deep
              <> "\\showboxbreadth=1"

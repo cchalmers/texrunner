@@ -3,26 +3,26 @@
 
 ----------------------------------------------------------------------------
 -- |
--- Module      :  System.TeXRunner.Log
+-- Module      :  System.Texrunner.Parse
 -- Copyright   :  (c) 2015 Christopher Chalmers
 -- License     :  BSD-style (see LICENSE)
 -- Maintainer  :  c.chalmers@me.com
 --
--- Functions for parsing TeX output and logs. This log is parser is
+-- Functions for parsing Tex output and logs. This log is parser is
 -- experimental and largely untested. Please make an issue for any logs
 -- that aren't parsed properly.
 --
 -----------------------------------------------------------------------------
 
-module System.TeXRunner.Parse
+module System.Texrunner.Parse
   ( -- * Box
     Box (..)
   , parseBox
     -- * Errors
-  , TeXLog (..)
-  , TeXInfo (..)
-  , TeXError (..)
-  , TeXError' (..)
+  , TexLog (..)
+  , TexInfo (..)
+  , TexError (..)
+  , TexError' (..)
   , someError
   , badBox
   , parseUnit
@@ -41,13 +41,14 @@ import           Data.Monoid
 -- only has a ByteString function. It's very likely this will all change to
 -- Text in the future.
 
-data TeXLog = TeXLog
-  { texInfo   :: TeXInfo
+data TexLog = TexLog
+  { texInfo   :: TexInfo
   , numPages  :: Maybe Int
-  , texErrors :: [TeXError]
+  , texErrors :: [TexError]
+  , rawLog    :: ByteString
   } deriving Show
 
-data TeXInfo = TeXInfo
+data TexInfo = TexInfo
   { texCommand      :: Maybe ByteString
   , texVersion      :: Maybe ByteString
   , texDistribution :: Maybe ByteString
@@ -56,22 +57,22 @@ data TeXInfo = TeXInfo
   deriving Show
 
 -- Make shift way to parse a log by combining it in this way.
-instance Monoid TeXLog where
-  mempty = TeXLog (TeXInfo Nothing Nothing Nothing) Nothing []
-  TeXLog prog pages1 errors1 `mappend` TeXLog _ pages2 errors2 =
+instance Monoid TexLog where
+  mempty = TexLog (TexInfo Nothing Nothing Nothing) Nothing []
+  TexLog prog pages1 errors1 raw `mappend` TexLog _ pages2 errors2 _ =
     case (pages1,pages2) of
-      (Just a,_) -> TeXLog prog (Just a) (errors1 ++ errors2)
-      (_,b)      -> TeXLog prog b (errors1 ++ errors2)
+      (Just a,_) -> TexLog prog (Just a) (errors1 ++ errors2) raw
+      (_,b)      -> TexLog prog b (errors1 ++ errors2) raw
 
-infoParser :: Parser TeXInfo
+infoParser :: Parser TexInfo
 infoParser
-  = TeXInfo
+  = TexInfo
   <$> optional ("This is"   *> takeTill (== ',') <* anyChar)
   <*> optional (" Version " *> takeTill (== ' ') <* anyChar)
   <*> optional (char '('    *> takeTill (== ')') <* anyChar)
   -- <*> Nothing
 
-logFile :: Parser TeXLog
+logFile :: Parser TexLog
 logFile = mconcat <$> many logLine
   where
     logLine = do
@@ -79,16 +80,16 @@ logFile = mconcat <$> many logLine
       pages  <- optional nPages
       errors <- maybeToList <$> optional someError
       _      <- restOfLine
-      return $ TeXLog info pages errors
+      return $ TexLog info pages errors
 
--- thisIs :: Parser TeXVersion
+-- thisIs :: Parser TexVersion
 
-parseLog :: ByteString -> TeXLog
+parseLog :: ByteString -> TexLog
 parseLog = (\(Right a) -> a) . parseOnly logFile
 -- the parse should never fail (I think)
 
-prettyPrintLog :: TeXLog -> ByteString
-prettyPrintLog (TeXLog {..}) =
+prettyPrintLog :: TexLog -> ByteString
+prettyPrintLog (TexLog {..}) =
   fromMaybe "unknown program" (texCommand texInfo)
   <> maybe "" (" version " <>) (texVersion texInfo)
   <> maybe "" (" " <>) (texDistribution texInfo)
@@ -135,23 +136,23 @@ pt2bp = (/1.00374)
 -- * Errors
 
 -- | An error from tex with possible line number.
-data TeXError = TeXError
+data TexError = TexError
   { errorLine :: Maybe Int
-  , error'    :: TeXError'
+  , error'    :: TexError'
   }
   deriving Show
 
-instance Eq TeXError where
-  TeXError _ a == TeXError _ b = a == b
+instance Eq TexError where
+  TexError _ a == TexError _ b = a == b
 
--- | A subset of possible error TeX can throw.
-data TeXError'
+-- | A subset of possible error Tex can throw.
+data TexError'
   = UndefinedControlSequence ByteString
   | MissingNumber
   | Missing Char
   | IllegalUnit -- (Maybe Char) (Maybe Char)
   | PackageError String String
-  | LaTeXError ByteString
+  | LatexError ByteString
   | BadBox ByteString
   | EmergencyStop
   | ParagraphEnded
@@ -165,7 +166,7 @@ data TeXError'
   deriving (Show, Read, Eq)
 
 -- Parse any line begining with "! ". Any unknown errors are returned as 'UnknowError'.
-someError :: Parser TeXError
+someError :: Parser TexError
 someError =  "! " *> errors
   where
     errors =  undefinedControlSequence
@@ -181,7 +182,7 @@ someError =  "! " *> errors
           <|> dimentionTooLarge
           <|> tooManyErrors
           <|> fatalError
-          <|> TeXError Nothing <$> UnknownError <$> restOfLine
+          <|> TexError Nothing <$> UnknownError <$> restOfLine
 
 noteStar :: Parser ()
 noteStar = skipSpace *> "<*>" *> skipSpace
@@ -202,7 +203,7 @@ toBeReadAgain = do
 
 -- General errors
 
-undefinedControlSequence :: Parser TeXError
+undefinedControlSequence :: Parser TexError
 undefinedControlSequence = do
   _ <- "Undefined control sequence."
 
@@ -217,7 +218,7 @@ undefinedControlSequence = do
   l <- optional line
   skipSpace
   cs <- finalControlSequence
-  return $ TeXError l (UndefinedControlSequence cs)
+  return $ TexError l (UndefinedControlSequence cs)
 
 finalControlSequence :: Parser ByteString
 finalControlSequence = last <$> many1 controlSequence
@@ -225,77 +226,77 @@ finalControlSequence = last <$> many1 controlSequence
     controlSequence = cons '\\' <$>
       (char '\\' *> takeTill (\x -> isSpace x || x=='\\'))
 
-illegalUnit :: Parser TeXError
+illegalUnit :: Parser TexError
 illegalUnit = do
   _ <- "Illegal unit of measure (pt inserted)."
   _ <- optional toBeReadAgain
   _ <- optional toBeReadAgain
 
-  return $ TeXError Nothing IllegalUnit
+  return $ TexError Nothing IllegalUnit
 
-missingNumber :: Parser TeXError
+missingNumber :: Parser TexError
 missingNumber = do
   _ <- "Missing number, treated as zero."
   _ <- optional toBeReadAgain
   _ <- optional noteStar
-  return $ TeXError Nothing MissingNumber
+  return $ TexError Nothing MissingNumber
 
-badBox :: Parser TeXError
+badBox :: Parser TexError
 badBox = do
   s <- choice ["Underfull", "Overfull", "Tight", "Loose"]
   _ <- " \\hbox " *> char '(' *> takeTill (==')') <* char ')'
   l <- optional line
-  return $ TeXError l (BadBox s)
+  return $ TexError l (BadBox s)
 
-missing :: Parser TeXError
+missing :: Parser TexError
 missing = do
   c <- "Missing " *> anyChar <* " inserted."
   l <- optional line
-  return $ TeXError l (Missing c)
+  return $ TexError l (Missing c)
 
 line :: Parser Int
 line =  " detected at line " *> decimal
     <|> "l."                 *> decimal
 
-emergencyStop :: Parser TeXError
+emergencyStop :: Parser TexError
 emergencyStop = "Emergency stop."
-             *> return (TeXError Nothing EmergencyStop)
+             *> return (TexError Nothing EmergencyStop)
 
-fatalError :: Parser TeXError
-fatalError = TeXError Nothing <$> FatalError <$> (" ==> Fatal error occurred, " *> restOfLine)
+fatalError :: Parser TexError
+fatalError = TexError Nothing <$> FatalError <$> (" ==> Fatal error occurred, " *> restOfLine)
 
 -- line 8058 tex.web
-extraBrace :: Parser TeXError
-extraBrace = "Argument of" *> return (TeXError Nothing ExtraBrace)
+extraBrace :: Parser TexError
+extraBrace = "Argument of" *> return (TexError Nothing ExtraBrace)
 
-tooMany :: Parser TeXError
-tooMany = TeXError Nothing <$> TooMany <$> ("Too Many " *> takeTill (=='\''))
+tooMany :: Parser TexError
+tooMany = TexError Nothing <$> TooMany <$> ("Too Many " *> takeTill (=='\''))
 
-tooManyErrors :: Parser TeXError
+tooManyErrors :: Parser TexError
 tooManyErrors = "That makes 100 errors; please try again."
-             *> return (TeXError Nothing TooManyErrors)
+             *> return (TexError Nothing TooManyErrors)
 
-dimentionTooLarge :: Parser TeXError
+dimentionTooLarge :: Parser TexError
 dimentionTooLarge = "Dimension too large."
-                 *> return (TeXError Nothing DimensionTooLarge)
+                 *> return (TexError Nothing DimensionTooLarge)
 
 -- line 8075 tex.web
-paragraphEnded :: Parser TeXError
+paragraphEnded :: Parser TexError
 paragraphEnded = do
   _ <- "Paragraph ended before "
   _ <- takeTill isSpace
   _ <- toBeReadAgain
   l <- optional line
-  return $ TeXError l ParagraphEnded
+  return $ TexError l ParagraphEnded
 
-numberTooBig :: Parser TeXError
+numberTooBig :: Parser TexError
 numberTooBig = "Number too big"
-            *> return (TeXError Nothing NumberTooBig)
+            *> return (TexError Nothing NumberTooBig)
 
--- LaTeX errors
+-- Latex errors
 
-latexError :: Parser TeXError
-latexError = TeXError Nothing <$> LaTeXError <$> ("LaTeX Error: " *> restOfLine)
+latexError :: Parser TexError
+latexError = TexError Nothing <$> LatexError <$> ("Latex Error: " *> restOfLine)
 
 -- Pages
 

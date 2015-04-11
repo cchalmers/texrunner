@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# OPTIONS_GHC -fno-warn-missing-signatures #-}
-module TeX.LogParse where
+module Tex.LogParse where
 
 import Data.ByteString.Lazy.Char8 as B (unlines, ByteString)
 import Data.Monoid
@@ -9,8 +9,8 @@ import Test.HUnit
 import Test.Framework.Providers.HUnit
 import Test.Framework as F
 
-import System.TeXRunner
-import System.TeXRunner.Parse
+import System.Texrunner
+import System.Texrunner.Parse
 
 tests = texTests ++ latexTests ++ contextTests
 
@@ -41,17 +41,17 @@ contextHeader = "\\starttext"
 
 context e code = testCase ("context" ++ show e) $ do
   (exitCode, texLog, mPDF) <- runTex "context" [] [] (contextHeader <> code)
-  map error' (texErrors texLog) @?= [e]
+  take 1 (map error' (texErrors texLog)) @?= [e]
   -- head (map error' $ texErrors texLog) @?= e
   -- assertBool ("context" ++ show e) $ texLog `containsError` e
 
-containsError :: TeXLog -> TeXError -> Bool
-containsError log (TeXError _ err) =  err `elem` map error' (texErrors log)
+containsError :: TexLog -> TexError -> Bool
+containsError log (TexError _ err) = err `elem` map error' (texErrors log)
 
-checkError :: (TeXError' -> ByteString -> F.Test) -> (TeXError', [ByteString]) -> F.Test
+checkError :: (TexError' -> ByteString -> F.Test) -> (TexError', [ByteString]) -> F.Test
 checkError f (e, codes) = testGroup (show e) $ map (f e) codes
 
-checkErrors :: TestName -> (TeXError' -> ByteString -> F.Test) ->  F.Test
+checkErrors :: TestName -> (TexError' -> ByteString -> F.Test) ->  F.Test
 checkErrors name f = testGroup name $ map (checkError f) texErrs
 
 texErrs =
