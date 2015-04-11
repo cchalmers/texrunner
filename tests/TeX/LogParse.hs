@@ -26,7 +26,7 @@ withHead _     _ = return ()
 
 tex e code = testCase ("tex" ++ show e) $ do
   (exitCode, texLog, mPDF) <- runTex "pdftex" [] [] code
-  map error' (texErrors texLog) @?= [e]
+  take 1 (map error' (texErrors texLog)) @?= [e]
 
 latexHeader, latexBye :: ByteString
 latexHeader = B.unlines

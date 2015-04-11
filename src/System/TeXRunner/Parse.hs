@@ -173,7 +173,7 @@ data TexError'
   | UnknownError ByteString
   deriving (Show, Read, Eq)
 
--- Parse any line begining with "! ". Any unknown errors are returned as 'UnknowError'.
+-- Parse any line begining with "! ". Any unknown errors are returned as 'UnknownError'.
 someError :: Parser TexError
 someError =  mark *> errors
   where
@@ -217,7 +217,7 @@ toBeReadAgain = do
 
 undefinedControlSequence :: Parser TexError
 undefinedControlSequence = do
-  _ <- "Undefined control sequence."
+  _ <- "Undefined control sequence"
 
   _ <- optional $ do -- for context log
     skipSpace
@@ -240,7 +240,7 @@ finalControlSequence = last <$> many1 controlSequence
 
 illegalUnit :: Parser TexError
 illegalUnit = do
-  _ <- "Illegal unit of measure (pt inserted)."
+  _ <- "Illegal unit of measure (pt inserted)"
   _ <- optional toBeReadAgain
   _ <- optional toBeReadAgain
 
@@ -248,7 +248,7 @@ illegalUnit = do
 
 missingNumber :: Parser TexError
 missingNumber = do
-  _ <- "Missing number, treated as zero."
+  _ <- "Missing number, treated as zero"
   _ <- optional toBeReadAgain
   _ <- optional noteStar
   return $ TexError Nothing MissingNumber
@@ -262,7 +262,7 @@ badBox = do
 
 missing :: Parser TexError
 missing = do
-  c <- "Missing " *> anyChar <* " inserted."
+  c <- "Missing " *> anyChar <* " inserted"
   l <- optional line
   return $ TexError l (Missing c)
 
@@ -271,7 +271,7 @@ line =  " detected at line " *> decimal
     <|> "l."                 *> decimal
 
 emergencyStop :: Parser TexError
-emergencyStop = "Emergency stop."
+emergencyStop = "Emergency stop"
              *> return (TexError Nothing EmergencyStop)
 
 fatalError :: Parser TexError
@@ -285,11 +285,11 @@ tooMany :: Parser TexError
 tooMany = TexError Nothing <$> TooMany <$> ("Too Many " *> takeTill (=='\''))
 
 tooManyErrors :: Parser TexError
-tooManyErrors = "That makes 100 errors; please try again."
+tooManyErrors = "That makes 100 errors; please try again"
              *> return (TexError Nothing TooManyErrors)
 
 dimentionTooLarge :: Parser TexError
-dimentionTooLarge = "Dimension too large."
+dimentionTooLarge = "Dimension too large"
                  *> return (TexError Nothing DimensionTooLarge)
 
 -- line 8075 tex.web
