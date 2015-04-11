@@ -18,10 +18,13 @@ texTests = [checkErrors "tex error parse" tex]
 latexTests = [checkErrors "latex error parse" latex]
 contextTests = [checkErrors "context error parse" context]
 
+withHead :: Monad m => [a] -> (a -> m ()) -> m ()
+withHead (a:_) f = f a
+withHead _     _ = return ()
 
 tex e code = testCase ("tex" ++ show e) $ do
   (exitCode, texLog, mPDF) <- runTex "pdftex" [] [] code
-  head (map error' $ texErrors texLog) @?= e
+  map error' (texErrors texLog) @?= [e]
 
 latexHeader :: ByteString
 latexHeader = B.unlines
@@ -38,7 +41,8 @@ contextHeader = "\\starttext"
 
 context e code = testCase ("context" ++ show e) $ do
   (exitCode, texLog, mPDF) <- runTex "context" [] [] (contextHeader <> code)
-  head (map error' $ texErrors texLog) @?= e
+  map error' (texErrors texLog) @?= [e]
+  -- head (map error' $ texErrors texLog) @?= e
   -- assertBool ("context" ++ show e) $ texLog `containsError` e
 
 containsError :: TeXLog -> TeXError -> Bool
@@ -82,23 +86,23 @@ undefinedControlSequence = (,) (UndefinedControlSequence "\\hobx")
 
 
 
--- 
+--
 -- missingDollarExample2= "x_1"
--- 
+--
 -- missingDollarExample3= "
--- 
+--
 -- numberTooBig = "10000000000"
--- 
+--
 -- overfull = "\\hbox to 1em{overfill box}"
--- 
+--
 -- underfill = "\\hbox to 20em{underfill box}"
--- 
+--
 -- illegalUnit = "\\hskip{1cn}"
--- 
+--
 -- undefinedControlSequence = "\\hobx"
--- 
+--
 -- missingNumber = "\\hskip"
---  
--- 
+--
+--
 -- missingDollarTest = (texPutStrLn missingDollarExample, MissingDollar)
--- 
+--
