@@ -16,7 +16,7 @@ maintainer:          c.chalmers@me.com
 copyright:           2015 Christopher Chalmers
 category:            System
 build-type:          Simple
-extra-source-files:  README.md
+extra-source-files:  README.md, CHANGELOG.md
 cabal-version:       >=1.10
 source-repository head
   type:     git
