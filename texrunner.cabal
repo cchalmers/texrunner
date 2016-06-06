@@ -24,11 +24,11 @@ source-repository head
 
 library
   exposed-modules:
-    System.Texrunner
-    System.Texrunner.Online
-    System.Texrunner.Parse
+    System.TeXRunner
+    System.TeXRunner.Online
+    System.TeXRunner.Parse
   build-depends:
-    base       >=4.6  && <4.9,
+    base       >=4.6  && <4.10,
     bytestring >=0.10 && <1.0,
     filepath,
     directory  >=1.2  && <2.0,

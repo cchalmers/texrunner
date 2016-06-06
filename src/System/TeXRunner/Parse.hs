@@ -3,7 +3,7 @@
 
 ----------------------------------------------------------------------------
 -- |
--- Module      :  System.Texrunner.Parse
+-- Module      :  System.TeXRunner.Parse
 -- Copyright   :  (c) 2015 Christopher Chalmers
 -- License     :  BSD-style (see LICENSE)
 -- Maintainer  :  c.chalmers@me.com
@@ -14,7 +14,7 @@
 --
 -----------------------------------------------------------------------------
 
-module System.Texrunner.Parse
+module System.TeXRunner.Parse
   ( -- * Box
     Box (..)
   , parseBox

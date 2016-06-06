@@ -3,7 +3,7 @@
 
 ----------------------------------------------------------------------------
 -- |
--- Module      :  System.Texrunner.Online
+-- Module      :  System.TeXRunner.Online
 -- Copyright   :  (c) 2015 Christopher Chalmers
 -- License     :  BSD-style (see LICENSE)
 -- Maintainer  :  c.chalmers@me.com
@@ -19,7 +19,7 @@
 --
 -----------------------------------------------------------------------------
 
-module System.Texrunner.Online
+module System.TeXRunner.Online
   ( OnlineTex
   -- * Running Tex online
   , runOnlineTex
@@ -61,7 +61,7 @@ import           System.IO.Streams.Attoparsec
 import           System.IO.Temp
 import           System.Process               as P (runInteractiveProcess)
 
-import           System.Texrunner.Parse
+import           System.TeXRunner.Parse
 
 -- | Type for dealing with Tex's pipping interface, the current streams
 --   are availble though the `MonadReader` instance.

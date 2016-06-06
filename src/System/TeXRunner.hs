@@ -1,6 +1,6 @@
 ----------------------------------------------------------------------------
 -- |
--- Module      :  System.Texrunner
+-- Module      :  System.TeXRunner
 -- Copyright   :  (c) 2014 Christopher Chalmers
 -- License     :  BSD-style (see LICENSE)
 -- Maintainer  :  c.chalmers@me.com
@@ -9,7 +9,7 @@
 --
 -----------------------------------------------------------------------------
 
-module System.Texrunner
+module System.TeXRunner
   ( runTex
   , runTex'
   , prettyPrintLog
@@ -28,7 +28,7 @@ import           System.IO
 import           System.IO.Temp
 import           System.Process
 
-import           System.Texrunner.Parse
+import           System.TeXRunner.Parse
 
 -- | Same as 'runTex'' but runs Tex in a temporary system directory.
 runTex :: String     -- ^ Tex command
