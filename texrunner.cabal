@@ -47,8 +47,6 @@ test-suite tests
   main-is:        Tests.hs
   ghc-options:    -Wall
   default-language: Haskell2010
-  other-modules:
-    Tex.PDF
 
   build-depends:
     base,
