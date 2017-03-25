@@ -131,7 +131,7 @@ parseLog = (\(Right a) -> a) . parseOnly logFile
 -- the parse should never fail (I think)
 
 prettyPrintLog :: TexLog -> ByteString
-prettyPrintLog (TexLog {..}) =
+prettyPrintLog TexLog {..} =
   fromMaybe "unknown program" (texCommand texInfo)
   <> maybe "" (" version " <>) (texVersion texInfo)
   <> maybe "" (" " <>) (texDistribution texInfo)
@@ -173,7 +173,7 @@ data TexError'
   | UnknownError ByteString
   deriving (Show, Read, Eq)
 
--- Parse any line begining with "! ". Any unknown errors are returned as 'UnknownError'.
+-- | Parse any line begining with "! ". Any unknown errors are returned as 'UnknownError'.
 someError :: Parser TexError
 someError =  mark *> errors
   where
