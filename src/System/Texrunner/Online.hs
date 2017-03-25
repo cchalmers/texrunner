@@ -63,12 +63,12 @@ import           System.Process               as P (runInteractiveProcess)
 
 import           System.Texrunner.Parse
 
--- | Type for dealing with Tex's pipping interface, the current streams
---   are availble though the `MonadReader` instance.
+-- | Type for dealing with Tex's piping interface; the current streams
+--   are available though the 'MonadReader' instance.
 newtype OnlineTex a = OnlineTex {runOnlineTexT :: ReaderT TexStreams IO a}
   deriving (Functor, Applicative, Monad, MonadIO, MonadReader TexStreams)
 
--- Run a tex process, disguarding the resulting PDF.
+-- | Run a tex process, discarding the resulting PDF.
 runOnlineTex :: String      -- ^ tex command
              -> [String]    -- ^ tex command arguments
              -> ByteString  -- ^ preamble
@@ -77,8 +77,8 @@ runOnlineTex :: String      -- ^ tex command
 runOnlineTex command args preamble process =
   (\(a,_,_) -> a) <$> runOnlineTex' command args preamble process
 
--- Run a tex process, keeping the resulting PDF. The OnlineTex must receive
--- the terminating control sequence (\bye, \end{document}, \stoptext).
+-- | Run a tex process, keeping the resulting PDF. The OnlineTex must receive
+--   the terminating control sequence (\\bye, \\end{document}, \\stoptext).
 runOnlineTex' :: String
               -> [String]
               -> ByteString
@@ -144,7 +144,7 @@ getInStream = reader snd
 clearUnblocking :: OnlineTex ()
 clearUnblocking = getInStream >>= void . liftIO . Streams.read
 
--- | Uses a surface to open an interface with Tex,
+-- | Uses a surface to open an interface with Tex.
 mkTexHandles :: FilePath
              -> Maybe [(String, String)]
              -> String
