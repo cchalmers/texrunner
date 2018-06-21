@@ -36,6 +36,7 @@ import           Data.ByteString.Char8            (ByteString, cons, pack)
 import qualified Data.ByteString.Char8            as B
 import           Data.Maybe
 import           Data.Monoid
+import           Data.Semigroup
 
 ------------------------------------------------------------------------
 -- Boxes
@@ -99,12 +100,15 @@ data TexInfo = TexInfo
   deriving Show
 
 -- Make shift way to parse a log by combining it in this way.
-instance Monoid TexLog where
-  mempty = TexLog (TexInfo Nothing Nothing Nothing) Nothing []
-  TexLog prog pages1 errors1 `mappend` TexLog _ pages2 errors2 =
+instance Semigroup TexLog where
+  TexLog prog pages1 errors1 <> TexLog _ pages2 errors2 =
     case (pages1,pages2) of
       (Just a,_) -> TexLog prog (Just a) (errors1 ++ errors2)
       (_,b)      -> TexLog prog b (errors1 ++ errors2)
+
+instance Monoid TexLog where
+  mempty  = TexLog (TexInfo Nothing Nothing Nothing) Nothing []
+  mappend = (<>)
 
 infoParser :: Parser TexInfo
 infoParser
