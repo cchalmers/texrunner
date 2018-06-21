@@ -18,6 +18,8 @@ category:            System
 build-type:          Simple
 extra-source-files:  README.md, CHANGELOG.md
 cabal-version:       >=1.10
+tested-with: GHC==7.8.4, GHC==7.10.3, GHC==8.0.2, GHC==8.2.2, GHC==8.4.3
+
 source-repository head
   type:     git
   location: http://github.com/cchalmers/texrunner
