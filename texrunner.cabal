@@ -28,7 +28,7 @@ library
     System.Texrunner.Online
     System.Texrunner.Parse
   build-depends:
-    base       >=4.6  && <4.10,
+    base       >=4.6  && <4.12,
     bytestring >=0.10 && <1.0,
     filepath,
     directory  >=1.2  && <2.0,
