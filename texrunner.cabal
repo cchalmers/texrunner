@@ -48,6 +48,7 @@ test-suite tests
   type:           exitcode-stdio-1.0
   hs-source-dirs: tests
   main-is:        Tests.hs
+  other-modules:  Tex.PDF, Tex.LogParse
   ghc-options:    -Wall
   default-language: Haskell2010
 
