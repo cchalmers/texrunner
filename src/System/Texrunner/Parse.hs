@@ -35,7 +35,6 @@ import           Data.Attoparsec.ByteString.Char8 as A
 import           Data.ByteString.Char8            (ByteString, cons, pack)
 import qualified Data.ByteString.Char8            as B
 import           Data.Maybe
-import           Data.Monoid
 import           Data.Semigroup
 
 ------------------------------------------------------------------------
