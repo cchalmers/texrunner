@@ -12,7 +12,7 @@ import Test.Framework as F
 import System.Texrunner
 import System.Texrunner.Parse
 import Control.Lens
-import Data.Foldable
+import Data.Foldable (for_)
 
 tests = texTests ++ latexTests ++ contextTests
 
