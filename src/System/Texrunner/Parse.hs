@@ -221,6 +221,7 @@ toBeReadAgain = do
 undefinedControlSequence :: Parser TexError
 undefinedControlSequence = do
   _ <- "Undefined control sequence"
+  _ <- optional "."
 
   _ <- optional $ do -- for context log
     skipSpace
