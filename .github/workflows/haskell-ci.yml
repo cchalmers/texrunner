@@ -49,7 +49,7 @@ jobs:
       - name: apt
         run: |
           apt-get update
-          apt-get install -y --no-install-recommends gnupg ca-certificates dirmngr curl git software-properties-common
+          apt-get install -y --no-install-recommends gnupg ca-certificates dirmngr curl git software-properties-common texlive-latex-base
           apt-add-repository -y 'ppa:hvr/ghc'
           apt-get update
           apt-get install -y ghc-$GHC_VERSION cabal-install-3.4
