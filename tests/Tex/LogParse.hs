@@ -88,7 +88,7 @@ genContextFiles = for_ labeledErrors mkFile
 
 labeledErrors =
   [ ("missing-dollar", missingDollar)
-  , ("dimention-too-large", dimensionTooLarge)
+  , ("dimension-too-large", dimensionTooLarge)
   , ("illegal-unit", illegalUnit)
   , ("missing-number", missingNumber)
   , ("undefined-control-sequence", undefinedControlSequence)

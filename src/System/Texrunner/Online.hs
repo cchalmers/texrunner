@@ -13,7 +13,7 @@
 --
 -- Tex's online interface is basically running the command line. You can
 -- see it by running @pdflatex@ without any arguments. The contents can
--- be writen line by and tex can give feedback though stdout, which gets
+-- be written line by and tex can give feedback though stdout, which gets
 -- parsed in by this module. This is the only way I know to get info
 -- like hbox sizes. Please let me know if you know a better way.
 --
