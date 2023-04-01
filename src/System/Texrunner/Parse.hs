@@ -176,11 +176,11 @@ data TexError'
   | UnknownError ByteString
   deriving (Show, Read, Eq)
 
--- | Parse any line begining with "! ". Any unknown errors are returned as 'UnknownError'.
+-- | Parse any line beginning with "! ". Any unknown errors are returned as 'UnknownError'.
 someError :: Parser TexError
 someError =  mark *> errors
   where
-    -- in context exclamation mark isn't always at the begining
+    -- in context exclamation mark isn't always at the beginning
     mark = "! " <|> (notChar '\n' *> mark)
     errors =  undefinedControlSequence
           <|> illegalUnit
@@ -192,7 +192,7 @@ someError =  mark *> errors
           <|> paragraphEnded
           <|> numberTooBig
           <|> tooMany
-          <|> dimentionTooLarge
+          <|> dimensionTooLarge
           <|> tooManyErrors
           <|> fatalError
           <|> TexError Nothing <$> UnknownError <$> restOfLine
@@ -292,8 +292,8 @@ tooManyErrors :: Parser TexError
 tooManyErrors = "That makes 100 errors; please try again"
              *> return (TexError Nothing TooManyErrors)
 
-dimentionTooLarge :: Parser TexError
-dimentionTooLarge = "Dimension too large"
+dimensionTooLarge :: Parser TexError
+dimensionTooLarge = "Dimension too large"
                  *> return (TexError Nothing DimensionTooLarge)
 
 -- line 8075 tex.web
