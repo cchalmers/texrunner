@@ -43,6 +43,7 @@ module System.Texrunner.Online
   ) where
 
 import           Control.Applicative
+import           Control.Monad                (void)
 import           Control.Monad.Reader
 import qualified Data.Attoparsec.ByteString   as A
 import           Data.ByteString.Char8        (ByteString)
