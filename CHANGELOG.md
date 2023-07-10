@@ -1,3 +1,8 @@
+## [v0.0.1.3] (2023-07-10)
+
+- Allow `base-4.18` (GHC 9.6)
+- Fix some documentation typos (thanks to @Moiman)
+
 ## [v0.0.1.2] (2018-07-14)
 
 - r1 (2018-10-16)
