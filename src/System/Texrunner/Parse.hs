@@ -34,6 +34,7 @@ import           Control.Applicative
 import           Data.Attoparsec.ByteString.Char8 as A
 import           Data.ByteString.Char8            (ByteString, cons, pack)
 import qualified Data.ByteString.Char8            as B
+import           Data.Functor                     (($>))
 import           Data.Maybe
 import           Data.Semigroup
 
@@ -181,7 +182,9 @@ someError :: Parser TexError
 someError =  mark *> errors
   where
     -- in context exclamation mark isn't always at the beginning
-    mark = "! " <|> (notChar '\n' *> mark)
+    mark = ("! " $> ())
+        <|> (("tex error       >" *> (many (notChar ':') *> ": ")) $> ())
+        <|> (notChar '\n' *> mark)
     errors =  undefinedControlSequence
           <|> illegalUnit
           <|> missingNumber
