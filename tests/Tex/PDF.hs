@@ -53,7 +53,7 @@ testOnlineTeX command args document = testCase (command ++ "Online") $ do
 
 texOnline     = testOnlineTeX "pdftex" [] texDocument
 latexOnline   = testOnlineTeX "pdflatex" [] latexDocument
-contextOnline = testOnlineTeX "context" ["--pipe"] contextDocument
+contextOnline = testOnlineTeX "context" ["--luatex", "--pipe"] contextDocument
 
 
 
