@@ -18,7 +18,7 @@ tests = texTests ++ latexTests ++ contextTests
 
 texTests = [checkErrors "tex error parse" tex]
 latexTests = [checkErrors "latex error parse" latex]
-contextTests = [checkErrors "context error parse" context]
+contextTests = [] -- [checkErrors "context error parse" context] https://github.com/cchalmers/texrunner/pull/12
 
 withHead :: Monad m => [a] -> (a -> m ()) -> m ()
 withHead (a:_) f = f a
