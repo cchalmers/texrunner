@@ -34,6 +34,7 @@ import           Control.Applicative
 import           Data.Attoparsec.ByteString.Char8 as A
 import           Data.ByteString.Char8            (ByteString, cons, pack)
 import qualified Data.ByteString.Char8            as B
+import           Data.Functor                     (($>))
 import           Data.Maybe
 import           Data.Semigroup
 
@@ -87,7 +88,7 @@ data TexLog = TexLog
   { texInfo   :: TexInfo
   , numPages  :: Maybe Int
   , texErrors :: [TexError]
-  -- , rawLog    :: ByteString
+  , rawLog    :: ByteString
   } deriving Show
 
 data TexInfo = TexInfo
@@ -100,13 +101,13 @@ data TexInfo = TexInfo
 
 -- Make shift way to parse a log by combining it in this way.
 instance Semigroup TexLog where
-  TexLog prog pages1 errors1 <> TexLog _ pages2 errors2 =
+  TexLog prog pages1 errors1 raw1 <> TexLog _ pages2 errors2 raw2 =
     case (pages1,pages2) of
-      (Just a,_) -> TexLog prog (Just a) (errors1 ++ errors2)
-      (_,b)      -> TexLog prog b (errors1 ++ errors2)
+      (Just a,_) -> TexLog prog (Just a) (errors1 ++ errors2) (raw1 <> raw2)
+      (_,b)      -> TexLog prog b (errors1 ++ errors2) (raw1 <> raw2)
 
 instance Monoid TexLog where
-  mempty  = TexLog (TexInfo Nothing Nothing Nothing) Nothing []
+  mempty  = TexLog (TexInfo Nothing Nothing Nothing) Nothing [] ""
   mappend = (<>)
 
 infoParser :: Parser TexInfo
@@ -125,12 +126,12 @@ logFile = mconcat <$> many logLine
       pages  <- optional nPages
       errors <- maybeToList <$> optional someError
       _      <- restOfLine
-      return $ TexLog info pages errors
+      return $ TexLog info pages errors ""
 
 -- thisIs :: Parser TexVersion
 
 parseLog :: ByteString -> TexLog
-parseLog = (\(Right a) -> a) . parseOnly logFile
+parseLog bs = (\(Right a) -> a { rawLog = bs }) . parseOnly logFile $ bs
 -- the parse should never fail (I think)
 
 prettyPrintLog :: TexLog -> ByteString
@@ -181,7 +182,9 @@ someError :: Parser TexError
 someError =  mark *> errors
   where
     -- in context exclamation mark isn't always at the beginning
-    mark = "! " <|> (notChar '\n' *> mark)
+    mark = ("! " $> ())
+        <|> (("tex error       >" *> (many (notChar ':') *> ": ")) $> ())
+        <|> (notChar '\n' *> mark)
     errors =  undefinedControlSequence
           <|> illegalUnit
           <|> missingNumber

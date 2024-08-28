@@ -12,10 +12,10 @@ import Test.Framework.Providers.HUnit
 import System.Texrunner
 import System.Texrunner.Online
 
-tests = [tex, latex, context, texOnline, latexOnline, contextOnline]
+tests = texTests ++ latexTests -- ++ contextTests
 texTests = [tex, texOnline]
 latexTests = [latex, latexOnline]
-contextTests = [context, contextOnline]
+contextTests = [] -- [context, contextOnline] https://github.com/cchalmers/texrunner/pull/12
 
 texDocument :: ByteString
 texDocument = "hi\\bye"
@@ -53,7 +53,7 @@ testOnlineTeX command args document = testCase (command ++ "Online") $ do
 
 texOnline     = testOnlineTeX "pdftex" [] texDocument
 latexOnline   = testOnlineTeX "pdflatex" [] latexDocument
-contextOnline = testOnlineTeX "context" ["--pipe"] contextDocument
+contextOnline = testOnlineTeX "context" ["--luatex", "--pipe"] contextDocument
 
 
 

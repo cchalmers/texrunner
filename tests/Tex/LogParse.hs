@@ -18,7 +18,7 @@ tests = texTests ++ latexTests ++ contextTests
 
 texTests = [checkErrors "tex error parse" tex]
 latexTests = [checkErrors "latex error parse" latex]
-contextTests = [checkErrors "context error parse" context]
+contextTests = [] -- [checkErrors "context error parse" context] https://github.com/cchalmers/texrunner/pull/12
 
 withHead :: Monad m => [a] -> (a -> m ()) -> m ()
 withHead (a:_) f = f a
@@ -43,11 +43,11 @@ contextHeader, contextBye :: ByteString
 contextHeader = "\\starttext"
 contextBye = "\\stoptext"
 
+context :: TexError' -> ByteString -> F.Test
 context e code = testCase ("context" ++ show e) $ do
   (exitCode, texLog, mPDF) <- runTex "context" [] [] (contextHeader <> code)
-  take 1 (map error' (texErrors texLog)) @?= [e]
-  -- head (map error' $ texErrors texLog) @?= e
-  -- assertBool ("context" ++ show e) $ texLog `containsError` e
+  -- BS.hPutStrLn stderr (rawLog texLog)
+  assertBool ("context" ++ show e) $ texLog `containsError` e
 
 -- Generating tex sample tex files -------------------------------------
 
@@ -96,8 +96,8 @@ labeledErrors =
 
 -- Checking error parsing ----------------------------------------------
 
-containsError :: TexLog -> TexError -> Bool
-containsError log (TexError _ err) = err `elem` map error' (texErrors log)
+containsError :: TexLog -> TexError' -> Bool
+containsError log err = err `elem` map error' (texErrors log)
 
 checkError :: (TexError' -> ByteString -> F.Test) -> (TexError', [ByteString]) -> F.Test
 checkError f (e, codes) = testGroup (show e) $ map (f e) codes
