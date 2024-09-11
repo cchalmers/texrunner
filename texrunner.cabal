@@ -1,5 +1,5 @@
 name:                texrunner
-version:             0.0.1.3
+version:             0.0.2
 synopsis:            Functions for running Tex from Haskell.
 description:
   texrunner is an interface to tex that attempts to parse errors and
