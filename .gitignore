@@ -1,0 +1,26 @@
+dist
+cabal-dev
+*.o
+*.hi
+*.chi
+*.chs.h
+.virthualenv
+*~
+*_flymake.*
+.hsenv_*
+dist_*
+history
+TAGS
+.diagrams-cache
+/cabal.sandbox.config
+/cabal.config
+/.cabal-sandbox/
+\#*
+.stack-work
+dist-newstyle/
+
+# editor-generated files
+.idea/
+*.iml
+
+.ghc.environment.*
