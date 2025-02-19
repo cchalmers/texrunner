@@ -1,7 +1,10 @@
 ## [v0.0.2] (2023-09-11)
 
-- Allow `base-4.19` (GHC 9.10)
+- Allow `base-4.20` (GHC 9.10)
 - Fix tests
+
+- r1 (2025-02-19)
+    - Allow `base-4.21` and test on GHC 9.12
 
 ## [v0.0.1.3] (2023-07-10)
 
