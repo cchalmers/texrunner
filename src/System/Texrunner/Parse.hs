@@ -130,8 +130,10 @@ logFile = mconcat <$> many logLine
 -- thisIs :: Parser TexVersion
 
 parseLog :: ByteString -> TexLog
-parseLog bs = (\(Right a) -> a { rawLog = bs }) . parseOnly logFile $ bs
--- the parse should never fail (I think)
+parseLog bs = case parseOnly logFile bs of
+  Right a -> a { rawLog = bs }
+  Left _ -> mempty
+  -- the parse should never fail (I think)
 
 prettyPrintLog :: TexLog -> ByteString
 prettyPrintLog TexLog {..} =
