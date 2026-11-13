@@ -36,7 +36,6 @@ import           Data.ByteString.Char8            (ByteString, cons, pack)
 import qualified Data.ByteString.Char8            as B
 import           Data.Functor                     (($>))
 import           Data.Maybe
-import           Data.Semigroup
 
 ------------------------------------------------------------------------
 -- Boxes

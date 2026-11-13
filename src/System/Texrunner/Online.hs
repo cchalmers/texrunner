@@ -42,7 +42,6 @@ module System.Texrunner.Online
   , clearUnblocking
   ) where
 
-import           Control.Applicative
 import           Control.Monad                (void)
 import           Control.Monad.Reader
 import qualified Data.Attoparsec.ByteString   as A
@@ -51,7 +50,6 @@ import qualified Data.ByteString.Char8        as C8
 import qualified Data.ByteString.Lazy.Char8   as LC8
 import           Data.List                    (find)
 import           Data.Maybe
-import           Data.Monoid
 import qualified Data.Traversable             as T
 
 import           System.Directory

@@ -15,7 +15,6 @@ module System.Texrunner
   , prettyPrintLog
   ) where
 
-import           Control.Applicative
 import qualified Data.ByteString.Char8      as C8 hiding (concatMap)
 import           Data.ByteString.Lazy.Char8 as LC8 hiding (concatMap)
 import           Data.Maybe
