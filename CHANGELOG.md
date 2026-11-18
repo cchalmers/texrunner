@@ -1,3 +1,9 @@
+## [v0.0.3] (2026-11-18)
+
+- Allow `base-4.22` and test on GHC 9.14
+- Remove support for GHC < 8.4
+- Fix warnings, remove redundant imports
+
 ## [v0.0.2] (2023-09-11)
 
 - Allow `base-4.20` (GHC 9.10)
